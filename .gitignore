@@ -1,8 +1,15 @@
+# ======================
+# Gradle
+# ======================
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+.gradle/
+**/build/
+gradle-app.setting
+.gradletasknamecache
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -15,6 +22,9 @@ build/
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+.idea/
+.idea/workspace.xml
+.idea/shelf/
 
 ### Kotlin ###
 .kotlin
@@ -43,3 +53,80 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+# ======================
+# Kotlin / JVM
+# ======================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# ======================
+# Environment & Secrets
+# ======================
+.env
+.env.*
+!.env.example
+local.properties
+secrets.properties
+application-local.conf
+application-local.yaml
+application-local.yml
+
+# ======================
+# Ktor / Config
+# ======================
+application.conf
+application.yaml
+application.yml
+!src/**/application.conf.example
+
+# ======================
+# Database
+# ======================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+data/
+
+# ======================
+# Logs
+# ======================
+*.log
+logs/
+*.log.*
+
+# ======================
+# OS
+# ======================
+
+# macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ======================
+# Docker
+# ======================
+docker-compose.override.yml
+
+# ======================
+# Node (auto-name.js script)
+# ======================
+node_modules/
+npm-debug.log*
+yarn-error.log*

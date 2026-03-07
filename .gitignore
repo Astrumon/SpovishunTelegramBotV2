@@ -92,7 +92,6 @@ application.yml
 *.sqlite3
 *.db-shm
 *.db-wal
-data/
 
 # ======================
 # Logs

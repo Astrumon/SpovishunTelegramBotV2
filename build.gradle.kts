@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ua.astrumon"
-version = "1.0-SNAPSHOT"
+version = "0.1.2"
 
 repositories {
     mavenCentral()
@@ -76,4 +76,32 @@ tasks.register<JavaExec>("runProd") {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// Generate version info from build.gradle
+tasks.register("generateVersionInfo") {
+    group = "build"
+    description = "Generate version info file"
+    
+    doLast {
+        val versionInfoFile = file("src/main/kotlin/common/util/VersionInfo.kt")
+        val versionInfoContent = """
+            package com.ua.astrumon.common.util
+            
+            object VersionInfo {
+                private const val VERSION = "$version"
+                const val BOT_NAME = "Spovishun"
+                
+                fun getFullVersion(): String = BOT_NAME + " v" + VERSION
+            }
+        """.trimIndent()
+        
+        versionInfoFile.writeText(versionInfoContent)
+        println("Generated VersionInfo.kt with version: $version")
+    }
+}
+
+// Make sure version info is generated before compile
+tasks.named("compileKotlin") {
+    dependsOn("generateVersionInfo")
 }

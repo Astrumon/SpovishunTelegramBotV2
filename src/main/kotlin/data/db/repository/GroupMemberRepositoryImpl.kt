@@ -7,6 +7,7 @@ import com.ua.astrumon.data.db.table.GroupMembers
 import com.ua.astrumon.data.db.table.Groups
 import com.ua.astrumon.data.db.table.Members
 import com.ua.astrumon.domain.repository.GroupMemberRepository
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
@@ -24,12 +25,13 @@ class GroupMemberRepositoryImpl : GroupMemberRepository {
         }.singleOrNull()
         
         if (existing != null) {
-            return@safeDbQuery
+            throw DuplicateResourceException("Group Member", "$username in group $groupKey")
         }
 
         GroupMembers.insert {
             it[GroupMembers.group] = group[Groups.id]
             it[GroupMembers.member] = member[Members.id]
+            it[GroupMembers.joinedAt] = Clock.System.now()
         }
     }
     

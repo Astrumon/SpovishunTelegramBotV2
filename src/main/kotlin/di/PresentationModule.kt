@@ -22,7 +22,7 @@ val presentationModule = module {
     single { MessageHandler(get()) }
 
     // Commands
-    single { StartCommand(get(), get()) }
+    single { StartCommand(get()) }
     single { RegisterCommand(get()) }
     single { GroupCommand(get(), get<AppConfig>().telegramAdminIds) }
     single { PingCommand(get(), get(), get()) }

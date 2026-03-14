@@ -3,16 +3,19 @@ package com.ua.astrumon.presentation.controller
 import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
+import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.GroupService
 import com.ua.astrumon.domain.service.MemberService
+import org.slf4j.LoggerFactory
 
 class GroupController(
     private val groupService: GroupService,
     private val memberService: MemberService,
     private val autoRegisterService: AutoRegisterService
 ) {
+    private val logger = LoggerFactory.getLogger(GroupController::class.java)
 
     suspend fun getGroups(member: Member): String {
         autoRegisterService.ensureUserRegistered(
@@ -39,11 +42,9 @@ class GroupController(
                 }
             },
             onFailure = {
-                println("DEBUG: Fold onFailure called with: ${it.userMessage}")
                 "❌ Помилка завантаження груп: ${it.userMessage}"
             }
         )
-        println("DEBUG: Final result from fold: $result")
         return result
     }
 
@@ -108,6 +109,7 @@ class GroupController(
 
         val key = args[0].lowercase()
         val username = args[1].removePrefix("@")
+        logger.info("Processing addUserToGroup with key: '$key' and username: '$username'")
 
         return groupService.getGroupByKey(key).flatMap { group ->
             groupService.addMemberToGroup(key, username).map { group }
@@ -117,7 +119,16 @@ class GroupController(
             },
             onFailure = { exception ->
                 when (exception) {
-                    is ResourceNotFoundException -> "❌ Групу $key не знайдено."
+                    is ValidationException -> "❌ Неможливо додати користувача @$username. Перевірте чи існує такий користувач"
+                    is ResourceNotFoundException -> {
+                        // Check if it's group or member not found by examining the exception message
+                        if (exception.message?.contains("Group") == true) {
+                            "❌ Групу $key не знайдено."
+                        } else {
+                            "❌ Користувача @$username не знайдено."
+                        }
+                    }
+                    is DuplicateResourceException -> "⚠️ Користувач @$username вже в групі <b>$key</b>."
                     else -> "❌ Помилка додавання до групи: ${exception.userMessage}"
                 }
             }

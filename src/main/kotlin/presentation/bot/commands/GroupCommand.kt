@@ -14,10 +14,14 @@ class GroupCommand(
     private val groupController: GroupController,
     private val adminIds: Set<Long>
 ) {
-    private val logger = LoggerFactory.getLogger(GroupMemberRepositoryMockImpl::class.java)
+    private val logger = LoggerFactory.getLogger(GroupCommand::class.java)
     
     suspend fun showGroups(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
+        val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("Groups command invoked - chatId: {}, userId: {}, username: {}", 
+            chatId, user.id, user.username)
         
         val member = Member(
             id = 0,
@@ -28,23 +32,31 @@ class GroupCommand(
         
         val response = groupController.getGroups(member)
         
+        logger.debug("Groups response generated for userId: {} in chatId: {}", user.id, chatId)
+        
         bot.sendMessage(
             chatId = ChatId.fromId(update.message!!.chat.id),
             text = response,
             parseMode = ParseMode.HTML
         )
+        
+        logger.debug("Groups message sent to chatId: {}", chatId)
     }
     
     suspend fun addNewGroup(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val args = update.message?.text?.split(" ")?.drop(1) ?: emptyList()
+        val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("NewGroup command invoked - chatId: {}, userId: {}, args: {}", 
+            chatId, user.id, args)
         
         val response = groupController.createGroup(
             userId = user.id,
             args = args,
             adminIds = adminIds
         )
-        logger.info("DEV: addNewGroup response=$response")
+        logger.info("NewGroup response for userId: {} in chatId: {}: {}", user.id, chatId, response)
         
         bot.sendMessage(
             chatId = ChatId.fromId(update.message!!.chat.id),
@@ -56,6 +68,10 @@ class GroupCommand(
     suspend fun deleteGroup(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val args = update.message?.text?.split(" ")?.drop(1) ?: emptyList()
+        val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("DeleteGroup command invoked - chatId: {}, userId: {}, args: {}", 
+            chatId, user.id, args)
         
         val response = groupController.deleteGroup(
             userId = user.id,
@@ -63,16 +79,24 @@ class GroupCommand(
             adminIds = adminIds
         )
         
+        logger.info("DeleteGroup response for userId: {} in chatId: {}: {}", user.id, chatId, response)
+        
         bot.sendMessage(
             chatId = ChatId.fromId(update.message!!.chat.id),
             text = response,
             parseMode = ParseMode.HTML
         )
+        
+        logger.debug("DeleteGroup message sent to chatId: {}", chatId)
     }
     
     suspend fun addUserToGroup(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val args = update.message?.text?.split(" ")?.drop(1) ?: emptyList()
+        val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("AddUserToGroup command invoked - chatId: {}, userId: {}, args: {}", 
+            chatId, user.id, args)
         
         val response = groupController.addUserToGroup(
             userId = user.id,
@@ -80,16 +104,24 @@ class GroupCommand(
             adminIds = adminIds
         )
         
+        logger.info("AddUserToGroup response for userId: {} in chatId: {}: {}", user.id, chatId, response)
+        
         bot.sendMessage(
             chatId = ChatId.fromId(update.message!!.chat.id),
             text = response,
             parseMode = ParseMode.HTML
         )
+        
+        logger.debug("AddUserToGroup message sent to chatId: {}", chatId)
     }
     
     suspend fun removeUserFromGroup(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val args = update.message?.text?.split(" ")?.drop(1) ?: emptyList()
+        val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("RemoveUserFromGroup command invoked - chatId: {}, userId: {}, args: {}", 
+            chatId, user.id, args)
         
         val response = groupController.removeUserFromGroup(
             userId = user.id,
@@ -97,10 +129,14 @@ class GroupCommand(
             adminIds = adminIds
         )
         
+        logger.info("RemoveUserFromGroup response for userId: {} in chatId: {}: {}", user.id, chatId, response)
+        
         bot.sendMessage(
             chatId = ChatId.fromId(update.message!!.chat.id),
             text = response,
             parseMode = ParseMode.HTML
         )
+        
+        logger.debug("RemoveUserFromGroup message sent to chatId: {}", chatId)
     }
 }

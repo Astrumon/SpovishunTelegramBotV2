@@ -1,6 +1,6 @@
 package com.ua.astrumon.data.memory.repository
 
-import com.ua.astrumon.common.exception.BusinessException
+import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.NotFoundException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Group
@@ -26,7 +26,7 @@ class GroupRepositoryMockImpl : GroupRepository {
     override suspend fun createGroup(name: String): ResultContainer<Group> {
         logger.info("DEV: Creating group - name: $name")
         if (groups.containsKey(name)) {
-            return ResultContainer.failure(BusinessException("Group already exists: $name"))
+            return ResultContainer.failure(DuplicateResourceException("Group", name))
         }
         
         val group = Group(

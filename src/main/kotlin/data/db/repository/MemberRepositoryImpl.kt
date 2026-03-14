@@ -34,7 +34,7 @@ class MemberRepositoryImpl : MemberRepository {
             Members.insertIgnore {
                 it[this@insertIgnore.userId] = userId
                 it[this@insertIgnore.username] = username
-                it[this@insertIgnore.firstName] = firstName
+                it[this@insertIgnore.firstname] = firstName
             }
 
             findMemberByUsername(username) ?: throw ResourceNotFoundException("Member", username)

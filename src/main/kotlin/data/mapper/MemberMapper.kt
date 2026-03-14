@@ -8,5 +8,5 @@ fun ResultRow.toMember() = Member(
     id = this[Members.id].value,
     userId = this[Members.userId],
     username = this[Members.username],
-    firstName = this[Members.firstName],
+    firstName = this[Members.firstname],
 )

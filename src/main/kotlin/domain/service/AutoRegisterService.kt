@@ -1,6 +1,7 @@
 package com.ua.astrumon.domain.service
 
 import com.ua.astrumon.common.exception.DatabaseException
+import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
 import org.slf4j.LoggerFactory
@@ -11,6 +12,12 @@ class AutoRegisterService(
     private val logger = LoggerFactory.getLogger(AutoRegisterService::class.java)
 
     suspend fun ensureUserRegistered(userId: Long, username: String, firstName: String): ResultContainer<Member> {
+        // Validate userId
+        if (userId == -1L) {
+            logger.warn("Attempted to register user with invalid userId: -1, username: $username")
+            return ResultContainer.failure(ValidationException("Cannot register user with invalid userId: -1"))
+        }
+
         return try {
             memberService.getMemberByUsername(username)
                 .onSuccess { member ->

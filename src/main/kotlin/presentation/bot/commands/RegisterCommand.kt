@@ -6,14 +6,19 @@ import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.service.MemberService
+import org.slf4j.LoggerFactory
 
 class RegisterCommand(
     private val memberService: MemberService
 ) {
+    private val logger = LoggerFactory.getLogger(RegisterCommand::class.java)
     
     suspend operator fun invoke(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val chatId = update.message?.chat?.id ?: return
+        
+        logger.info("Register command invoked - chatId: {}, userId: {}, username: {}, firstName: {}", 
+            chatId, user.id, user.username, user.firstName)
 
         val member = Member(
             id = 0, // Will be set by database
@@ -27,6 +32,13 @@ class RegisterCommand(
             username = member.username,
             firstName = member.firstName
         )
+        
+        if (result.isSuccess) {
+            logger.info("Successfully registered member: userId: {}, username: {}", user.id, user.username)
+        } else {
+            logger.info("Member already exists or registration failed: userId: {}, username: {}, error: {}", 
+                user.id, user.username, result.exceptionOrNull()?.message)
+        }
         
         val responseText = if (result.isSuccess) {
             "✅ ${user.firstName}, ви успішно зареєстровані в системі!"

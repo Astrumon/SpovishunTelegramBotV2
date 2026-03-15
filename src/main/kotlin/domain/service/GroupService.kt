@@ -12,48 +12,48 @@ class GroupService(
 ) {
     private val logger = LoggerFactory.getLogger(GroupService::class.java)
 
-    suspend fun getAllGroupsWithMembers(): ResultContainer<List<GroupWithMembers>> {
-        return groupRepository.getAllGroups().flatMap { groups ->
+    suspend fun getAllGroupsWithMembers(chatId: Long): ResultContainer<List<GroupWithMembers>> {
+        return groupRepository.getAllGroups(chatId).flatMap { groups ->
             val groupsWithMembers = groups.map { group ->
-                groupMemberRepository.getGroupMembers(group.name).map { members ->
+                groupMemberRepository.getGroupMembers(chatId, group.name).map { members ->
                     GroupWithMembers(
                         id = group.id,
+                        chatId = chatId,
                         key = group.name,
                         name = group.name,
                         members = members
                     )
                 }
             }
-
             ResultContainer.catching {
                 groupsWithMembers.map { it.getOrThrow() }
             }
         }
     }
 
-    suspend fun createGroup(name: String): ResultContainer<Group> {
-        return groupRepository.createGroup(name)
+    suspend fun createGroup(chatId: Long, name: String): ResultContainer<Group> {
+        return groupRepository.createGroup(chatId, name)
     }
 
-    suspend fun deleteGroup(key: String): ResultContainer<Unit> {
-        return groupRepository.deleteGroup(key)
+    suspend fun deleteGroup(chatId: Long, key: String): ResultContainer<Unit> {
+        return groupRepository.deleteGroup(chatId, key)
     }
 
-    suspend fun addMemberToGroup(key: String, username: String): ResultContainer<Unit> {
-        return groupMemberRepository.addMemberToGroup(key, username)
+    suspend fun addMemberToGroup(chatId: Long, key: String, username: String): ResultContainer<Unit> {
+        return groupMemberRepository.addMemberToGroup(chatId, key, username)
     }
 
-    suspend fun removeMemberFromGroup(key: String, username: String): ResultContainer<Unit> {
-        return groupMemberRepository.removeMemberFromGroup(key, username)
+    suspend fun removeMemberFromGroup(chatId: Long, key: String, username: String): ResultContainer<Unit> {
+        return groupMemberRepository.removeMemberFromGroup(chatId, key, username)
     }
 
-    suspend fun getGroupByKey(key: String): ResultContainer<GroupWithMembers> {
-        logger.info("DEBUG: GroupService.getGroupByKey called with key: '$key'")
-        return groupRepository.findGroupByKey(key).flatMap { group ->
-            logger.info("DEBUG: GroupRepository found group: $group")
-            groupMemberRepository.getGroupMembers(group.name).map { members ->
+    suspend fun getGroupByKey(chatId: Long, key: String): ResultContainer<GroupWithMembers> {
+        logger.info("getGroupByKey called with chatId=$chatId, key='$key'")
+        return groupRepository.findGroupByKey(chatId, key).flatMap { group ->
+            groupMemberRepository.getGroupMembers(chatId, group.name).map { members ->
                 GroupWithMembers(
                     id = group.id,
+                    chatId = chatId,
                     key = group.name,
                     name = group.name,
                     members = members
@@ -65,6 +65,7 @@ class GroupService(
 
 data class GroupWithMembers(
     val id: Long,
+    val chatId: Long,
     val key: String,
     val name: String,
     val members: List<String>

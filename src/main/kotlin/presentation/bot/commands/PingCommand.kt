@@ -82,11 +82,11 @@ class PingCommand(
 
         val groupKey = args[0].lowercase()
         logger.debug("Looking for group with key: {} in chatId: {}", groupKey, chatId)
-        val groupResult = groupService.getGroupByKey(groupKey)
+        val groupResult = groupService.getGroupByKey(chatId, groupKey)
 
         if (groupResult.isFailure) {
             logger.warn("Group '{}' not found for pingGroup in chatId: {}", groupKey, chatId)
-            val allGroupsResult = groupService.getAllGroupsWithMembers()
+            val allGroupsResult = groupService.getAllGroupsWithMembers(chatId)
             val availableKeys = if (allGroupsResult.isSuccess) {
                 allGroupsResult.getOrNull()?.joinToString(", ") { it.key } ?: "—"
             } else {

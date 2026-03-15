@@ -9,4 +9,5 @@ fun ResultRow.toMember() = Member(
     userId = this[Members.userId],
     username = this[Members.username],
     firstName = this[Members.firstname],
+    joinedAt = this[Members.joinedAt]
 )

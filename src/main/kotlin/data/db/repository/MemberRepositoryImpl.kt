@@ -8,6 +8,7 @@ import com.ua.astrumon.data.db.table.Members
 import com.ua.astrumon.data.mapper.toMember
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.repository.MemberRepository
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insertIgnore
@@ -24,17 +25,23 @@ class MemberRepositoryImpl : MemberRepository {
             findMemberByUserId(userId)
         }
 
-    override suspend fun save(userId: Long, username: String, firstName: String): ResultContainer<Member> =
+    override suspend fun save(
+        userId: Long,
+        username: String,
+        firstName: String,
+        joinedAt: Instant?
+    ): ResultContainer<Member> =
         safeDbQuery {
             val existing = findMemberByUsername(username)
             if (existing != null) {
                 throw DuplicateResourceException("Member", username)
             }
-            
+
             Members.insertIgnore {
                 it[this@insertIgnore.userId] = userId
                 it[this@insertIgnore.username] = username
                 it[this@insertIgnore.firstname] = firstName
+                joinedAt?.let { joinedDate -> it[this@insertIgnore.joinedAt] = joinedDate }
             }
 
             findMemberByUsername(username) ?: throw ResourceNotFoundException("Member", username)

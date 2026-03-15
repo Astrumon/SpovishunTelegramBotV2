@@ -1,20 +1,14 @@
 package com.ua.astrumon.data.db
 
-import com.ua.astrumon.config.AppConfig
 import com.ua.astrumon.common.exception.DatabaseException
-import com.zaxxer.hikari.HikariConfig
+import com.ua.astrumon.config.AppConfig
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.StdOutSqlLogger
-import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
-import com.ua.astrumon.data.db.table.Groups
-import com.ua.astrumon.data.db.table.Members
-import com.ua.astrumon.data.db.table.GroupMembers
 
 object DatabaseFactory {
     private val logger = LoggerFactory.getLogger(DatabaseFactory::class.java)
@@ -23,35 +17,36 @@ object DatabaseFactory {
         try {
             logger.info("Initializing database connection...")
             
-            val hikariConfig = HikariConfig().apply {
-                driverClassName = config.databaseDriver
-                jdbcUrl = config.databaseUrl
-                username = config.databaseUsername
+            val hikariConfig = DataSourceFactory.create(
+                url = config.databaseUrl,
+                driver = config.databaseDriver,
+                username = config.databaseUsername,
                 password = config.databasePassword
-                maximumPoolSize = 10
-                minimumIdle = 5
-                idleTimeout = 30000
-                connectionTimeout = 30000
-                maxLifetime = 1800000
-            }
+            )
             
             val dataSource = HikariDataSource(hikariConfig)
             Database.connect(dataSource)
             
             logger.info("Database connection established. Creating schema...")
-            
-            // Auto-migrate schema with proper error handling
-            transaction {
-                addLogger(StdOutSqlLogger)
-                try {
-                    SchemaUtils.createMissingTablesAndColumns(Groups, Members, GroupMembers)
-                    logger.info("Database schema migration completed successfully")
-                } catch (e: Exception) {
-                    logger.error("Failed to migrate database schema", e)
-                    throw DatabaseException("Schema migration failed", e)
-                }
+
+            val migrationLocation = if (config.databaseUrl.contains("postgresql")) {
+                "classpath:db/migration"
+            } else {
+                logger.info("PostgreSQL database is not supported yet")
+                return
             }
-            
+
+            logger.info("Running Flyway migrations from: $migrationLocation")
+
+
+            val flyway = Flyway.configure()
+                .dataSource(dataSource)
+                .locations(migrationLocation)
+                .baselineOnMigrate(true)
+                .load()
+
+            val result = flyway.migrate()
+            logger.info("Flyway: applied ${result.migrationsExecuted} migration(s)")
         } catch (e: Exception) {
             logger.error("Failed to initialize database", e)
             throw DatabaseException("Database initialization failed", e)

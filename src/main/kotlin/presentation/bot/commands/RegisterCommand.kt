@@ -24,7 +24,8 @@ class RegisterCommand(
             id = 0, // Will be set by database
             userId = user.id,
             username = user.username ?: "user_${user.id}",
-            firstName = user.firstName
+            firstName = user.firstName,
+            joinedAt = null
         )
         
         val result = memberService.createMember(

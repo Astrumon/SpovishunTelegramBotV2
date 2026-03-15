@@ -3,6 +3,8 @@ package com.ua.astrumon.data.memory.repository
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.repository.MemberRepository
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import org.slf4j.LoggerFactory
 
 class MemberRepositoryMockImpl : MemberRepository {
@@ -20,13 +22,14 @@ class MemberRepositoryMockImpl : MemberRepository {
         return ResultContainer.success(members.values.find { it.userId == userId })
     }
     
-    override suspend fun save(userId: Long, username: String, firstName: String): ResultContainer<Member> {
+    override suspend fun save(userId: Long, username: String, firstName: String, joinedAt: Instant?): ResultContainer<Member> {
         logger.info("DEV: Saving member - userId: $userId, username: $username, firstName: $firstName")
         val member = Member(
             id = nextId++,
             userId = userId,
             username = username,
-            firstName = firstName
+            firstName = firstName,
+            joinedAt = joinedAt,
         )
         members[username] = member
         logger.info("DEV: Member saved successfully: $member")

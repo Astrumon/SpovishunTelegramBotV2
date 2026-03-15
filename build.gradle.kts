@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.date)
+    implementation(libs.exposed.migration)
 
     // Database drivers
     implementation(libs.sqlite.jdbc)
@@ -36,6 +37,10 @@ dependencies {
 
     // Connection pool
     implementation(libs.hikari)
+
+    // Db Migration
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.postgresql)
 
     // Logging
     implementation(libs.logback)
@@ -58,50 +63,4 @@ application {
     mainClass.set("com.ua.astrumon.MainKt")
 }
 
-tasks.register<JavaExec>("runDev") {
-    group = "application"
-    description = "Run the application in development mode"
-    classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("com.ua.astrumon.MainKt")
-    environment("PROFILE", "dev")
-}
-
-tasks.register<JavaExec>("runProd") {
-    group = "application"
-    description = "Run the application in production mode"
-    classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("com.ua.astrumon.MainKt")
-    environment("PROFILE", "prod")
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-// Generate version info from build.gradle
-tasks.register("generateVersionInfo") {
-    group = "build"
-    description = "Generate version info file"
-    
-    doLast {
-        val versionInfoFile = file("src/main/kotlin/common/util/VersionInfo.kt")
-        val versionInfoContent = """
-            package com.ua.astrumon.common.util
-            
-            object VersionInfo {
-                private const val VERSION = "$version"
-                const val BOT_NAME = "Spovishun"
-                
-                fun getFullVersion(): String = BOT_NAME + " v" + VERSION
-            }
-        """.trimIndent()
-        
-        versionInfoFile.writeText(versionInfoContent)
-        println("Generated VersionInfo.kt with version: $version")
-    }
-}
-
-// Make sure version info is generated before compile
-tasks.named("compileKotlin") {
-    dependsOn("generateVersionInfo")
-}
+registerAppTasks()

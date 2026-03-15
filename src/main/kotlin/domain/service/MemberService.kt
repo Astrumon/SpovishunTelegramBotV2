@@ -5,6 +5,7 @@ import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.repository.MemberRepository
+import kotlinx.datetime.Clock
 
 class MemberService(
     private val memberRepository: MemberRepository
@@ -13,7 +14,12 @@ class MemberService(
     suspend fun createMember(userId: Long, username: String, firstName: String): ResultContainer<Member> {
         return checkUsernameExists(username)
             .flatMap {
-                memberRepository.save(userId = userId, username = username, firstName = firstName)
+                memberRepository.save(
+                    userId = userId,
+                    username = username,
+                    firstName = firstName,
+                    joinedAt = Clock.System.now()
+                )
             }
     }
 
@@ -39,7 +45,8 @@ class MemberService(
                             memberRepository.save(
                                 userId = currentMember.userId,
                                 username = newUsername,
-                                firstName = currentMember.firstName
+                                firstName = currentMember.firstName,
+                                joinedAt = currentMember.joinedAt
                             )
                         }
                 }

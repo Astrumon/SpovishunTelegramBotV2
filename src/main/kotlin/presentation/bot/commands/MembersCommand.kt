@@ -24,7 +24,8 @@ class MembersCommand(
             id = 0,
             userId = user.id,
             username = user.username ?: "user_${user.id}",
-            firstName = user.firstName ?: "Unknown"
+            firstName = user.firstName ?: "Unknown",
+            joinedAt = null,
         )
         
         val response = membersController.getMembers(member)

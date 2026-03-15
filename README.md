@@ -1,1 +1,83 @@
 # SpovishunTelegramBotV2
+
+A Kotlin-based Telegram bot built with Clean Architecture, Koin DI, Exposed ORM, and Flyway database migrations.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Kotlin 2.3.0 (JVM 21) |
+| Build | Gradle Kotlin DSL + Version Catalog |
+| DI | Koin 3.x |
+| ORM | Exposed 0.55.0 |
+| Migrations | Flyway 10.x |
+| Database (dev) | SQLite |
+| Database (prod) | PostgreSQL |
+| Config | dotenv-kotlin |
+| Logging | SLF4J + Logback |
+
+## Project Structure
+```
+src/main/kotlin/
+├── config/             # AppConfig — dotenv-based configuration
+├── data/
+│   ├── db/
+│   │   ├── table/      # Exposed Table objects
+│   │   ├── repository/ # Repository implementations
+│   │   ├── DatabaseFactory.kt    # DB init + Flyway migrations
+│   │   └── DataSourceFactory.kt  # HikariCP datasource factory
+│   ├── mapper/         # ResultRow → domain model mappers
+│   └── memory/         # In-memory repositories (dev)
+├── di/                 # Koin modules
+├── domain/
+│   ├── model/          # Pure Kotlin data classes
+│   ├── repository/     # Repository interfaces
+│   └── usecase/        # Business logic
+├── presentation/
+│   └── bot/            # Telegram bot + command handlers
+└── tools/
+    └── MigrationGenerator.kt  # CLI tool for generating migrations
+src/main/resources/
+└── db/migration/
+    ├── V1__init_schema.sql       # PostgreSQL (prod)
+    └── sqlite/
+        └── V1__init_schema.sql  # SQLite (dev)
+```
+
+## Running
+```bash
+cp .env.example .env   # fill in your values
+
+./gradlew runDev    # dev profile — in-memory repositories
+./gradlew runProd   # prod profile — PostgreSQL + Flyway
+```
+
+## Database Migrations
+
+Migrations run automatically on startup (prod only) via Flyway.
+
+### Adding a migration
+
+1. Update the `Table` object in `data/db/table/`
+2. Generate the SQL:
+```bash
+./gradlew generateMigration
+# → Enter migration description: add_member_lastname
+# → ✅ Created: V2__add_member_lastname.sql
+```
+3. Review the generated file
+4. Commit the `Table` file and migration script together
+
+> ⚠️ Never edit a migration file after it has been applied to any database.
+
+## Environment Variables
+
+| Variable | Example |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | `123456:ABC-DEF...` |
+| `ADMINS` | `123456789,987654321` |
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/spovishun` |
+| `DATABASE_DRIVER` | `org.postgresql.Driver` |
+| `DATABASE_USERNAME` | `postgres` |
+| `DATABASE_PASSWORD` | `secret` |
+| `PROFILE` | `dev` або `prod` |

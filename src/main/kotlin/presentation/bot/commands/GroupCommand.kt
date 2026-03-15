@@ -7,6 +7,7 @@ import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.data.memory.repository.GroupMemberRepositoryMockImpl
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.presentation.controller.GroupController
+import kotlinx.datetime.Clock
 import org.slf4j.LoggerFactory
 
 
@@ -27,7 +28,8 @@ class GroupCommand(
             id = 0,
             userId = user.id,
             username = user.username ?: "user_${user.id}",
-            firstName = user.firstName ?: "Unknown"
+            firstName = user.firstName ?: "Unknown",
+            joinedAt = null,
         )
         
         val response = groupController.getGroups(member)

@@ -12,47 +12,48 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 class GroupMemberRepositoryImpl : GroupMemberRepository {
-    
-    override suspend fun addMemberToGroup(groupKey: String, username: String): ResultContainer<Unit> = safeDbQuery {
-        val group = Groups.selectAll().where { Groups.name eq groupKey }.singleOrNull()
-            ?: throw ResourceNotFoundException("Group", groupKey)
 
-        val member = Members.selectAll().where { Members.username eq username }.singleOrNull()
-            ?: throw ResourceNotFoundException("Member", username)
+    override suspend fun addMemberToGroup(chatId: Long, groupKey: String, username: String): ResultContainer<Unit> =
+        safeDbQuery {
+            val group = getGroupByChat(chatId, groupKey) ?: throw ResourceNotFoundException("Group", groupKey)
+            val member = getMemberByUsername(username) ?: throw ResourceNotFoundException("Member", username)
 
-        val existing = GroupMembers.selectAll().where {
-            (GroupMembers.group eq group[Groups.id]) and (GroupMembers.member eq member[Members.id])
-        }.singleOrNull()
-        
-        if (existing != null) {
-            throw DuplicateResourceException("Group Member", "$username in group $groupKey")
+            val existing = GroupMembers.selectAll().where {
+                (GroupMembers.group eq group[Groups.id]) and (GroupMembers.member eq member[Members.id])
+            }.singleOrNull()
+
+            if (existing != null) {
+                throw DuplicateResourceException("Group Member", "$username in group $groupKey")
+            }
+
+            GroupMembers.insert {
+                it[GroupMembers.group] = group[Groups.id]
+                it[GroupMembers.member] = member[Members.id]
+                it[GroupMembers.joinedAt] = Clock.System.now()
+            }
         }
 
-        GroupMembers.insert {
-            it[GroupMembers.group] = group[Groups.id]
-            it[GroupMembers.member] = member[Members.id]
-            it[GroupMembers.joinedAt] = Clock.System.now()
-        }
-    }
-    
-    override suspend fun removeMemberFromGroup(groupKey: String, username: String): ResultContainer<Unit> = safeDbQuery {
-        val group = Groups.selectAll().where { Groups.name eq groupKey }.singleOrNull()
-            ?: throw ResourceNotFoundException("Group", groupKey)
-
-        val member = Members.selectAll().where { Members.username eq username }.singleOrNull()
-            ?: throw ResourceNotFoundException("Member", username)
+    override suspend fun removeMemberFromGroup(
+        chatId: Long,
+        groupKey: String,
+        username: String
+    ): ResultContainer<Unit> = safeDbQuery {
+        val group = getGroupByChat(chatId, groupKey) ?: throw ResourceNotFoundException("Group", groupKey)
+        val member = getMemberByUsername(username) ?: throw ResourceNotFoundException("Member", username)
 
         val deletedCount = GroupMembers.deleteWhere {
             (GroupMembers.group eq group[Groups.id]) and (GroupMembers.member eq member[Members.id])
         }
-        
+
         if (deletedCount == 0) {
             throw BusinessException("Member $username is not in group $groupKey")
         }
     }
-    
-    override suspend fun getGroupMembers(groupKey: String): ResultContainer<List<String>> = safeDbQuery {
-        val group = Groups.selectAll().where { Groups.name eq groupKey }.singleOrNull()
+
+    override suspend fun getGroupMembers(chatId: Long, groupKey: String): ResultContainer<List<String>> = safeDbQuery {
+        val group = Groups.selectAll()
+            .where { (Groups.chatId eq chatId) and (Groups.name eq groupKey) }
+            .singleOrNull()
             ?: throw ResourceNotFoundException("Group", groupKey)
 
         GroupMembers
@@ -61,4 +62,11 @@ class GroupMemberRepositoryImpl : GroupMemberRepository {
             .where { GroupMembers.group eq group[Groups.id] }
             .map { row -> row[Members.username] }
     }
+
+    private fun getGroupByChat(chatId: Long, groupKey: String) = Groups.selectAll()
+        .where { (Groups.chatId eq chatId) and (Groups.name eq groupKey) }
+        .singleOrNull()
+
+    private fun getMemberByUsername(username: String) =
+        Members.selectAll().where { Members.username eq username }.singleOrNull()
 }

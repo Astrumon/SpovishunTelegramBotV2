@@ -1,5 +1,7 @@
 package com.ua.astrumon.presentation.controller
 
+import com.github.kotlintelegrambot.Bot
+import com.github.kotlintelegrambot.entities.ChatId
 import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
@@ -17,14 +19,14 @@ class GroupController(
 ) {
     private val logger = LoggerFactory.getLogger(GroupController::class.java)
 
-    suspend fun getGroups(member: Member): String {
+    suspend fun getGroups(chatId: Long, member: Member): String {
         autoRegisterService.ensureUserRegistered(
             userId = member.userId,
             username = member.username,
             firstName = member.firstName
         )
 
-        val result = groupService.getAllGroupsWithMembers().fold(
+        val result = groupService.getAllGroupsWithMembers(chatId).fold(
             onSuccess = { groups ->
                 if (groups.isEmpty()) {
                     "<b>Немає груп</b>. Створи: /newgroup &lt;назва&gt;"
@@ -48,10 +50,48 @@ class GroupController(
         return result
     }
 
-    suspend fun createGroup(userId: Long, args: List<String>, adminIds: Set<Long>): String {
-        if (userId !in adminIds) {
-            return "🚫 Лише адміни."
-        }
+    suspend fun getGroups(bot: Bot, chatId: Long, member: Member): String {
+        autoRegisterService.ensureUserRegistered(
+            userId = member.userId,
+            username = member.username,
+            firstName = member.firstName
+        )
+
+        val result = groupService.getAllGroupsWithMembers(chatId).fold(
+            onSuccess = { groups ->
+                if (groups.isEmpty()) {
+                    "<b>Немає груп</b>. Створи: /newgroup &lt;назва&gt;"
+                } else {
+                    val lines = mutableListOf("📋 <b>Групи:</b>")
+                    groups.forEach { group ->
+                        val names = if (group.members.isNotEmpty()) {
+                            group.members.map { username ->
+                                val memberRecord = memberService.getMemberByUsername(username)
+                                val isAdmin = memberRecord.fold(
+                                    onSuccess = { member -> 
+                                        isAdmin(bot, chatId, member.userId)
+                                    },
+                                    onFailure = { false }
+                                )
+                                "@$username${if (isAdmin) " 🔐" else ""}"
+                            }
+                        } else {
+                            listOf("—")
+                        }
+                        lines.add("• <b>${group.name}</b> (/ping ${group.key}): ${names.joinToString(", ")}")
+                    }
+                    lines.joinToString("\n")
+                }
+            },
+            onFailure = {
+                "❌ Помилка завантаження груп: ${it.userMessage}"
+            }
+        )
+        return result
+    }
+
+    suspend fun createGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
 
         if (args.isEmpty()) {
             return "Не правильно використовуєш команду, спробуй: /newgroup &lt;назва&gt;"
@@ -59,7 +99,7 @@ class GroupController(
 
         val name = args[0].lowercase()
 
-        return groupService.createGroup(name).fold(
+        return groupService.createGroup(chatId, name).fold(
             onSuccess = {
                 "✅ Група <b>$name</b> створена!\nВиклик: /ping $name"
             },
@@ -72,10 +112,8 @@ class GroupController(
         )
     }
 
-    suspend fun deleteGroup(userId: Long, args: List<String>, adminIds: Set<Long>): String {
-        if (userId !in adminIds) {
-            return "🚫 Лише адміни."
-        }
+    suspend fun deleteGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
 
         if (args.isEmpty()) {
             return "Використання: /delgroup &lt;назва&gt;"
@@ -83,8 +121,8 @@ class GroupController(
 
         val key = args[0].lowercase()
 
-        return groupService.getGroupByKey(key).flatMap { group ->
-            groupService.deleteGroup(key).map { group.name }
+        return groupService.getGroupByKey(chatId, key).flatMap { group ->
+            groupService.deleteGroup(chatId, key).map { group.name }
         }.fold(
             onSuccess = { groupName ->
                 "🗑 Група <b>$groupName</b> видалена."
@@ -98,10 +136,8 @@ class GroupController(
         )
     }
 
-    suspend fun addUserToGroup(userId: Long, args: List<String>, adminIds: Set<Long>): String {
-        if (userId !in adminIds) {
-            return "🚫 Лише адміни."
-        }
+    suspend fun addUserToGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
 
         if (args.size < 2) {
             return "Використання: /addtogroup &lt;назва&gt; @username"
@@ -111,8 +147,8 @@ class GroupController(
         val username = args[1].removePrefix("@")
         logger.info("Processing addUserToGroup with key: '$key' and username: '$username'")
 
-        return groupService.getGroupByKey(key).flatMap { group ->
-            groupService.addMemberToGroup(key, username).map { group }
+        return groupService.getGroupByKey(chatId, key).flatMap { group ->
+            groupService.addMemberToGroup(chatId, key, username).map { group }
         }.fold(
             onSuccess = { group ->
                 "✅ <b>$username</b> додано до <b>${group.name}</b>."
@@ -128,6 +164,7 @@ class GroupController(
                             "❌ Користувача @$username не знайдено."
                         }
                     }
+
                     is DuplicateResourceException -> "⚠️ Користувач @$username вже в групі <b>$key</b>."
                     else -> "❌ Помилка додавання до групи: ${exception.userMessage}"
                 }
@@ -135,10 +172,8 @@ class GroupController(
         )
     }
 
-    suspend fun removeUserFromGroup(userId: Long, args: List<String>, adminIds: Set<Long>): String {
-        if (userId !in adminIds) {
-            return "🚫 Лише адміни."
-        }
+    suspend fun removeUserFromGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
 
         if (args.size < 2) {
             return "Використання: /removefromgroup &lt;назва&gt; @username"
@@ -147,8 +182,8 @@ class GroupController(
         val key = args[0].lowercase()
         val username = args[1].removePrefix("@")
 
-        return groupService.getGroupByKey(key).flatMap { group ->
-            groupService.removeMemberFromGroup(key, username).map { group }
+        return groupService.getGroupByKey(chatId, key).flatMap { group ->
+            groupService.removeMemberFromGroup(chatId, key, username).map { group }
         }.fold(
             onSuccess = { group ->
                 "✅ <b>$username</b> видалено з <b>${group.name}</b>."
@@ -161,5 +196,10 @@ class GroupController(
                 }
             }
         )
+    }
+
+    private fun isAdmin(bot: Bot, chatId: Long, userId: Long): Boolean {
+        val admins = bot.getChatAdministrators(ChatId.fromId(chatId))
+        return admins.getOrNull()?.any { it.user.id == userId } == true
     }
 }

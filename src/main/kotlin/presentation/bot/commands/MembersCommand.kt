@@ -28,7 +28,7 @@ class MembersCommand(
             joinedAt = null,
         )
         
-        val response = membersController.getMembers(member)
+        val response = membersController.getMembers(bot, chatId, member)
         
         logger.debug("Members response generated for userId: {} in chatId: {}", user.id, chatId)
         

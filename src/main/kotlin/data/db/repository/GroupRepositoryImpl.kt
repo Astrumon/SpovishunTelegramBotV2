@@ -12,52 +12,61 @@ import org.slf4j.LoggerFactory
 
 class GroupRepositoryImpl : GroupRepository {
     private val logger = LoggerFactory.getLogger(GroupRepositoryImpl::class.java)
-    
-    override suspend fun getAllGroups(): ResultContainer<List<Group>> = safeDbQuery {
-        Groups.selectAll().map { row ->
+
+    override suspend fun getAllGroups(chatId: Long): ResultContainer<List<Group>> = safeDbQuery {
+        logger.info("getAllGroups called for chatId=$chatId")
+        Groups.selectAll().where { Groups.chatId eq chatId }.map { row ->
             Group(
                 id = row[Groups.id].value,
+                chatId = row[Groups.chatId],
                 name = row[Groups.name],
                 memberUsernames = emptyList()
             )
         }
     }
-    
-    override suspend fun findGroupByKey(key: String): ResultContainer<Group> {
-        logger.info("DEBUG: findGroupByKey called with key: '$key'")
-        return safeDbQuery {
-            logger.info("DEBUG: Searching for group with key: '$key'")
-            val result = Groups.selectAll().where { Groups.name eq key }.singleOrNull()
-            logger.info("DEBUG: Query result: $result")
-            result?.let { row ->
-                Group(
-                    id = row[Groups.id].value,
-                    name = row[Groups.name],
-                    memberUsernames = emptyList()
-                )
-            } ?: throw ResourceNotFoundException("Group", key)
-        }
+
+    override suspend fun findGroupByKey(chatId: Long, key: String): ResultContainer<Group> = safeDbQuery {
+        logger.info("findGroupByKey called with chatId=$chatId, key='$key'")
+        val result = Groups.selectAll()
+            .where { (Groups.chatId eq chatId) and (Groups.name eq key) }
+            .singleOrNull()
+        result?.let { row ->
+            Group(
+                id = row[Groups.id].value,
+                chatId = row[Groups.chatId],
+                name = row[Groups.name],
+                memberUsernames = emptyList()
+            )
+        } ?: throw ResourceNotFoundException("Group", key)
     }
-    
-    override suspend fun createGroup(name: String): ResultContainer<Group> = safeDbQuery {
-        val existing = Groups.selectAll().where { Groups.name eq name }.singleOrNull()
+
+    override suspend fun createGroup(chatId: Long, name: String): ResultContainer<Group> = safeDbQuery {
+        logger.info("createGroup called with chatId=$chatId, name='$name'")
+        val existing = Groups.selectAll()
+            .where { (Groups.chatId eq chatId) and (Groups.name eq name) }
+            .singleOrNull()
         if (existing != null) {
             throw DuplicateResourceException("Group", name)
         }
-        
+
         val insertedId = Groups.insert {
+            it[Groups.chatId] = chatId
             it[Groups.name] = name
         } get Groups.id
-        
+
         Group(
             id = insertedId.value,
+            chatId = chatId,
             name = name,
             memberUsernames = emptyList()
         )
     }
-    
-    override suspend fun deleteGroup(key: String): ResultContainer<Unit> = safeDbQuery {
-        val deletedCount = Groups.deleteWhere { Groups.name eq key }
+
+    override suspend fun deleteGroup(chatId: Long, key: String): ResultContainer<Unit> = safeDbQuery {
+        logger.info("deleteGroup called with chatId=$chatId, key='$key'")
+        val deletedCount = Groups.deleteWhere {
+            (Groups.chatId eq chatId) and (Groups.name eq key)
+        }
         if (deletedCount == 0) {
             throw ResourceNotFoundException("Group", key)
         }

@@ -24,7 +24,7 @@ val presentationModule = module {
     // Commands
     single { StartCommand(get()) }
     single { RegisterCommand(get()) }
-    single { GroupCommand(get(), get<AppConfig>().telegramAdminIds) }
+    single { GroupCommand(get()) }
     single { PingCommand(get(), get(), get()) }
     single { MembersCommand(get()) }
 }

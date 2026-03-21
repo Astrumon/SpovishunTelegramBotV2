@@ -11,7 +11,7 @@ class AutoRegisterService(
 ) {
     private val logger = LoggerFactory.getLogger(AutoRegisterService::class.java)
 
-    suspend fun ensureUserRegistered(userId: Long, username: String, firstName: String): ResultContainer<Member> {
+    suspend fun ensureUserRegistered(chatId: Long, userId: Long, username: String, firstName: String): ResultContainer<Member> {
         // Validate userId
         if (userId == -1L) {
             logger.warn("Attempted to register user with invalid userId: -1, username: $username")
@@ -25,7 +25,7 @@ class AutoRegisterService(
                 }
                 .onFailure {
                     logger.info("Auto-registering new user: $username (ID: $userId)")
-                    memberService.createMember(userId, username, firstName)
+                    memberService.createMember(chatId, userId, username, firstName)
                         .onSuccess { member ->
                             logger.info("Successfully auto-registered user: $username with ID: ${member.id}")
                         }

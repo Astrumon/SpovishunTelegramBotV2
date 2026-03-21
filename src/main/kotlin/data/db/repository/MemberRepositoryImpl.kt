@@ -26,6 +26,7 @@ class MemberRepositoryImpl : MemberRepository {
         }
 
     override suspend fun save(
+        chatId: Long,
         userId: Long,
         username: String,
         firstName: String,
@@ -38,6 +39,7 @@ class MemberRepositoryImpl : MemberRepository {
             }
 
             Members.insertIgnore {
+                it[this@insertIgnore.chatId] = chatId
                 it[this@insertIgnore.userId] = userId
                 it[this@insertIgnore.username] = username
                 it[this@insertIgnore.firstname] = firstName

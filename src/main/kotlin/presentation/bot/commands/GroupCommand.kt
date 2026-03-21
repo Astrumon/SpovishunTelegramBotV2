@@ -27,6 +27,7 @@ class GroupCommand(
 
         val member = Member(
             id = 0,
+            chatId = chatId,
             userId = user.id,
             username = user.username ?: "user_${user.id}",
             firstName = user.firstName ?: "Unknown",

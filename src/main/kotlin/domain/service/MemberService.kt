@@ -11,10 +11,11 @@ class MemberService(
     private val memberRepository: MemberRepository
 ) {
 
-    suspend fun createMember(userId: Long, username: String, firstName: String): ResultContainer<Member> {
+    suspend fun createMember(chatId: Long, userId: Long, username: String, firstName: String): ResultContainer<Member> {
         return checkUsernameExists(username)
             .flatMap {
                 memberRepository.save(
+                    chatId = chatId,
                     userId = userId,
                     username = username,
                     firstName = firstName,
@@ -43,6 +44,7 @@ class MemberService(
                     checkUsernameExists(newUsername)
                         .flatMap {
                             memberRepository.save(
+                                chatId = currentMember.chatId,
                                 userId = currentMember.userId,
                                 username = newUsername,
                                 firstName = currentMember.firstName,

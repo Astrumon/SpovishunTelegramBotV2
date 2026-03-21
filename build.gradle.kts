@@ -13,7 +13,12 @@ repositories {
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
+    // Tests
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.h2)
+
     // Env
     implementation(libs.dotenv)
 
@@ -64,3 +69,7 @@ application {
 }
 
 registerAppTasks()
+
+tasks.test {
+    useJUnitPlatform()
+}

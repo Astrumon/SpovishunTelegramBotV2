@@ -12,6 +12,8 @@ postgresql = "42.7.7"
 hikari = "5.1.0"
 logback = "1.5.32"
 flyway = "12.1.0"
+mockk = "1.13.13"
+h2 = "2.3.232"
 
 [libraries]
 
@@ -49,6 +51,13 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 
 # Telegram
 telegram-bot = { group = "io.github.kotlin-telegram-bot.kotlin-telegram-bot", name = "telegram", version.ref = "telegram-bot" }
+
+# Tests
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+h2 = { group = "com.h2database", name = "h2", version.ref = "h2" }
+
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

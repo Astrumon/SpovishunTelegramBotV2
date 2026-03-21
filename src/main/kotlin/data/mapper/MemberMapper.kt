@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.ResultRow
 
 fun ResultRow.toMember() = Member(
     id = this[Members.id].value,
+    chatId = this[Members.chatId],
     userId = this[Members.userId],
     username = this[Members.username],
     firstName = this[Members.firstname],

@@ -13,6 +13,7 @@ class MembersController(
 
     suspend fun getMembers(member: Member): String {
         autoRegisterService.ensureUserRegistered(
+            chatId = member.chatId,
             userId = member.userId,
             username = member.username,
             firstName = member.firstName
@@ -44,6 +45,7 @@ class MembersController(
 
     suspend fun getMembers(bot: Bot, chatId: Long, member: Member): String {
         autoRegisterService.ensureUserRegistered(
+            chatId = chatId,
             userId = member.userId,
             username = member.username,
             firstName = member.firstName

@@ -81,7 +81,12 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
             }
 
             if (triggerUser != null) {
-                addMemberToDatabase(triggerUser.id, triggerUser.username, triggerUser.firstName)
+                addMemberToDatabase(
+                    chatId = chatId,
+                    userId = triggerUser.id,
+                    username = triggerUser.username,
+                    firstName = triggerUser.firstName
+                )
             }
 
         } catch (e: Exception) {
@@ -101,7 +106,12 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
                         "Adding admin to database: userId: {}, username: {}",
                         admin.user.id, admin.user.username
                     )
-                    addMemberToDatabase(admin.user.id, admin.user.username, admin.user.firstName)
+                    addMemberToDatabase(
+                        userId = admin.user.id,
+                        chatId = chatId,
+                        username = admin.user.username,
+                        firstName = admin.user.firstName
+                    )
                 }
             } else {
                 logger.warn("Failed to get chat administrators for chatId: {}", chatId)
@@ -134,7 +144,7 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
         }
     }
 
-    private suspend fun addMemberToDatabase(userId: Long, username: String?, firstName: String) {
+    private suspend fun addMemberToDatabase(chatId: Long, userId: Long, username: String?, firstName: String) {
         val sanitizedUsername = sanitizeUsername(username, userId)
         logger.debug(
             "Attempting to register member: userId: {}, username: {}, firstName: {}",
@@ -142,6 +152,7 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
         )
         val result = autoRegisterService.ensureUserRegistered(
             userId = userId,
+            chatId = chatId,
             username = sanitizedUsername,
             firstName = firstName
         )

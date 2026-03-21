@@ -21,6 +21,7 @@ class GroupController(
 
     suspend fun getGroups(chatId: Long, member: Member): String {
         autoRegisterService.ensureUserRegistered(
+            chatId = chatId,
             userId = member.userId,
             username = member.username,
             firstName = member.firstName
@@ -52,6 +53,7 @@ class GroupController(
 
     suspend fun getGroups(bot: Bot, chatId: Long, member: Member): String {
         autoRegisterService.ensureUserRegistered(
+            chatId = chatId,
             userId = member.userId,
             username = member.username,
             firstName = member.firstName

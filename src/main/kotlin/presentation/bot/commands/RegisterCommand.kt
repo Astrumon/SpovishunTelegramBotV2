@@ -22,6 +22,7 @@ class RegisterCommand(
 
         val member = Member(
             id = 0, // Will be set by database
+            chatId = chatId,
             userId = user.id,
             username = user.username ?: "user_${user.id}",
             firstName = user.firstName,
@@ -29,6 +30,7 @@ class RegisterCommand(
         )
         
         val result = memberService.createMember(
+            chatId = chatId,
             userId = member.userId,
             username = member.username,
             firstName = member.firstName

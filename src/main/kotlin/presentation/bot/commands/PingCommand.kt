@@ -160,12 +160,14 @@ class PingCommand(
 
     private suspend fun ensureUserRegistered(update: Update) {
         val user = update.message?.from ?: return
+        val chatId = update.message?.chat?.id ?: return
         
         logger.debug("Ensuring user is registered - userId: {}, username: {}", 
             user.id, user.username)
 
         autoRegisterService.ensureUserRegistered(
             userId = user.id,
+            chatId = chatId,
             username = user.username ?: "user_${user.id}",
             firstName = user.firstName
         )

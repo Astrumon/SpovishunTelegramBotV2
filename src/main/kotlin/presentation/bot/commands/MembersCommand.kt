@@ -23,6 +23,7 @@ class MembersCommand(
         val member = Member(
             id = 0,
             userId = user.id,
+            chatId = chatId,
             username = user.username ?: "user_${user.id}",
             firstName = user.firstName ?: "Unknown",
             joinedAt = null,

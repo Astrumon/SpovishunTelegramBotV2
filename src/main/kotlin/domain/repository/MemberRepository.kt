@@ -7,6 +7,6 @@ import kotlinx.datetime.Instant
 interface MemberRepository {
     suspend fun findByUsername(username: String): ResultContainer<Member?>
     suspend fun findByUserId(userId: Long): ResultContainer<Member?>
-    suspend fun save(userId: Long, username: String, firstName: String, joinedAt: Instant?): ResultContainer<Member>
+    suspend fun save(chatId: Long, userId: Long, username: String, firstName: String, joinedAt: Instant?): ResultContainer<Member>
     suspend fun findAll(): ResultContainer<List<Member>>
 }

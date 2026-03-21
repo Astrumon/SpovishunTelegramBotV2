@@ -13,11 +13,13 @@ class MessageHandler(
     suspend fun handleIncomingMessage(bot: Bot, update: Update) {
         val message = update.message ?: return
         val user = message.from ?: return
+        val chatId = message.chat.id
         
         val username = user.username ?: "user_${user.id}"
         val firstName = user.firstName
         
         autoRegisterService.ensureUserRegistered(
+            chatId = chatId,
             userId = user.id,
             username = username,
             firstName = firstName

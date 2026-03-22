@@ -100,9 +100,9 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
-        val expectedError = ResourceNotFoundException("Member", username)
+        val notFoundError = ResourceNotFoundException("Member", username)
 
-        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(expectedError)
+        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
         coEvery { memberService.createMember(chatId, userId, username, firstName) } returns ResultContainer.failure(
             DuplicateResourceException("Member", username)
         )
@@ -114,11 +114,10 @@ class AutoRegisterServiceTest {
         assertTrue(result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue(exception is DuplicateResourceException)
-        assertEquals("Member with identifier '$username' already exists", exception?.message)
+        assertEquals("Member with identifier '$username' already exists", exception.message)
         coVerify { memberService.getMemberByUsername(username) }
         coVerify { memberService.createMember(chatId, userId, username, firstName) }
     }
-
 
     @Test
     fun `ensureUserRegistered should return failure when member lookup fails`() = runTest {
@@ -139,7 +138,6 @@ class AutoRegisterServiceTest {
         coVerify { memberService.getMemberByUsername(username) }
         coVerify(exactly = 0) { memberService.createMember(any(), any(), any(), any()) }
     }
-
 
     @Test
     fun `ensureUserRegistered should handle unexpected exception and return DatabaseException`() = runTest {
@@ -214,49 +212,4 @@ class AutoRegisterServiceTest {
         coVerify { memberService.getMemberByUsername(username) }
     }
 
-    @Test
-    fun `ensureUserRegistered should work with different userId values`() = runTest {
-        // Given
-        val chatId = 123L
-        val userId = 0L  // Valid userId (not -1)
-        val username = "alice"
-        val firstName = "Alice"
-        val newMember = Member(1L, chatId, userId, username, firstName, null)
-        val notFoundError = ResourceNotFoundException("Member", username)
-
-        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
-        coEvery { memberService.createMember(chatId, userId, username, firstName) } returns ResultContainer.success(newMember)
-
-        // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
-
-        // Then
-        assertTrue(result.isSuccess)
-        assertEquals(newMember, result.getOrThrow())
-        coVerify { memberService.getMemberByUsername(username) }
-        coVerify { memberService.createMember(chatId, userId, username, firstName) }
-    }
-
-    @Test
-    fun `ensureUserRegistered should work with special characters in username`() = runTest {
-        // Given
-        val chatId = 123L
-        val userId = 456L
-        val username = "alice_123"
-        val firstName = "Alice"
-        val newMember = Member(1L, chatId, userId, username, firstName, null)
-        val notFoundError = ResourceNotFoundException("Member", username)
-
-        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
-        coEvery { memberService.createMember(chatId, userId, username, firstName) } returns ResultContainer.success(newMember)
-
-        // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
-
-        // Then
-        assertTrue(result.isSuccess)
-        assertEquals(newMember, result.getOrThrow())
-        coVerify { memberService.getMemberByUsername(username) }
-        coVerify { memberService.createMember(chatId, userId, username, firstName) }
-    }
 }

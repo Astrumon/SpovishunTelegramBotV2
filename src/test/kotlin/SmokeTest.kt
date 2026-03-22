@@ -1,29 +1,28 @@
 import data.db.TestDatabaseFactory
 import data.db.testDbQuery
+import io.mockk.clearAllMocks
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertTrue
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertTrue
 
 class SmokeTest {
-    
-    @Test
-    fun `test database initialization`() {
-        // This test verifies that the test database setup works
-        TestDatabaseFactory.initialize()
-        assertTrue(true, "Database initialization completed without errors")
+
+    @BeforeTest
+    fun setup() {
+        clearAllMocks()
     }
-    
+
     @Test
-    fun `test basic database query`() = runTest {
+    fun `database initialization should complete without errors`() {
         TestDatabaseFactory.initialize()
-        
-        // Simple test query to verify database connectivity
-        testDbQuery {
-            // This is a basic query that should always work
-            // Just testing that the database connection is functional
-            // We'll just verify we can execute a transaction
-        }
-        
-        assertTrue(true, "Basic database query executed successfully")
+        assertTrue(true)
+    }
+
+    @Test
+    fun `basic database query should execute without errors`() = runTest {
+        TestDatabaseFactory.initialize()
+        testDbQuery { }
+        assertTrue(true)
     }
 }

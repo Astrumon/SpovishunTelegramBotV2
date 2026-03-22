@@ -62,7 +62,6 @@ class MemberServiceTest {
         val username = "alice"
         val firstName = "Alice"
         val existingMember = Member(1L, chatId, 789L, username, "Old Alice", null)
-        val error = DuplicateResourceException("Member", username)
 
         coEvery { memberRepository.findByUsername(username) } returns ResultContainer.success(existingMember)
 
@@ -73,7 +72,7 @@ class MemberServiceTest {
         assertTrue(result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue(exception is DuplicateResourceException)
-        assertEquals(error.message, exception.message)
+        assertEquals("Member with identifier '$username' already exists", exception.message)
         coVerify { memberRepository.findByUsername(username) }
         coVerify(exactly = 0) { memberRepository.save(any(), any(), any(), any(), any()) }
     }
@@ -199,7 +198,6 @@ class MemberServiceTest {
         val newUsername = "bob"
         val currentMember = Member(1L, 123L, 456L, currentUsername, "Alice", null)
         val existingMember = Member(2L, 123L, 789L, newUsername, "Bob", null)
-        val error = DuplicateResourceException("Member", newUsername)
 
         coEvery { memberRepository.findByUsername(currentUsername) } returns ResultContainer.success(currentMember)
         coEvery { memberRepository.findByUsername(newUsername) } returns ResultContainer.success(existingMember)
@@ -211,7 +209,7 @@ class MemberServiceTest {
         assertTrue(result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue(exception is DuplicateResourceException)
-        assertEquals(error.message, exception.message)
+        assertEquals("Member with identifier '$newUsername' already exists", exception.message)
         coVerify { memberRepository.findByUsername(currentUsername) }
         coVerify { memberRepository.findByUsername(newUsername) }
         coVerify(exactly = 0) { memberRepository.save(any(), any(), any(), any(), any()) }
@@ -266,7 +264,7 @@ class MemberServiceTest {
 
         // Then
         assertTrue(result.isSuccess)
-        assertEquals(0, result.getOrThrow().size)
+        assertTrue(result.getOrThrow().isEmpty())
         coVerify { memberRepository.findAll() }
     }
 

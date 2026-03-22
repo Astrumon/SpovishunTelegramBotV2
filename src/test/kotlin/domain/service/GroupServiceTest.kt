@@ -53,11 +53,9 @@ class GroupServiceTest {
         assertEquals(2, groupWithMembers.size)
         
         val devsGroup = groupWithMembers.find { it.key == "devs" }
-        assertEquals("devs", devsGroup?.key)
         assertEquals(members1, devsGroup?.members)
-        
+
         val adminsGroup = groupWithMembers.find { it.key == "admins" }
-        assertEquals("admins", adminsGroup?.key)
         assertEquals(members2, adminsGroup?.members)
 
         coVerify { groupRepository.getAllGroups(chatId) }

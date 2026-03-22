@@ -134,5 +134,3 @@ yarn-error.log*
 # Claude Code
 # ======================
 .claude/settings.local.json
-.claude/skills/notion-*/
-.claude/skills/technical-documentation-writer/

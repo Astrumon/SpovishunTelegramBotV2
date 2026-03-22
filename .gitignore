@@ -129,3 +129,8 @@ docker-compose.override.yml
 node_modules/
 npm-debug.log*
 yarn-error.log*
+
+# ======================
+# Claude Code
+# ======================
+.claude/settings.local.json

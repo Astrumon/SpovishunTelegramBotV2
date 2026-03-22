@@ -176,15 +176,10 @@ def main():
     print("Syncing skills to Notion...")
     existing = get_existing_child_pages(token)
 
-    for skill_dir in sorted(SKILLS_DIR.iterdir()):
-        if not skill_dir.is_dir():
-            continue
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_md.exists():
-            continue
+    for skill_md in sorted(SKILLS_DIR.rglob("SKILL.md")):
         content = skill_md.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(content)
-        sync_skill(fm.get("name", skill_dir.name), fm.get("description", ""), body, existing, token)
+        sync_skill(fm.get("name", skill_md.parent.name), fm.get("description", ""), body, existing, token)
 
     print("Done.")
 

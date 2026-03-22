@@ -70,6 +70,16 @@ Migrations run automatically on startup (prod only) via Flyway.
 
 > ⚠️ Never edit a migration file after it has been applied to any database.
 
+## AI Development (Claude Code)
+
+This project uses [Claude Code](https://claude.ai/code) as the primary AI development agent.
+
+```bash
+claude   # launch Claude Code in the project directory
+```
+
+The `CLAUDE.md` file in the root provides Claude with full context: architecture, layer rules, naming conventions, commit format, and common task checklists. No additional prompting is needed for standard development tasks.
+
 ## Environment Variables
 
 | Variable | Example |

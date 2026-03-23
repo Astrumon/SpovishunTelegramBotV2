@@ -80,6 +80,21 @@ claude   # launch Claude Code in the project directory
 
 The `CLAUDE.md` file in the root provides Claude with full context: architecture, layer rules, naming conventions, commit format, and common task checklists. No additional prompting is needed for standard development tasks.
 
+## Bot Commands
+
+| Команда | Опис |
+|---|---|
+| `/start` | Реєстрація та привітання |
+| `/register` | Ручна реєстрація |
+| `/all [текст]` | Тегнути всіх учасників |
+| `/ping <група> [текст]` | Тегнути всіх учасників групи |
+| `/groups` | Список усіх груп |
+| `/members` | Список усіх учасників |
+| `/newgroup <назва>` | Створити групу *(адмін)* |
+| `/delgroup <назва>` | Видалити групу *(адмін)* |
+| `/addtogroup <група> @user` | Додати до групи *(адмін)* |
+| `/removefromgroup <група> @user` | Видалити з групи *(адмін)* |
+
 ## Environment Variables
 
 | Variable | Example |

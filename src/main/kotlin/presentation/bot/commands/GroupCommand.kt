@@ -4,7 +4,6 @@ import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
-import com.ua.astrumon.data.memory.repository.GroupMemberRepositoryMockImpl
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.presentation.controller.GroupController
 import kotlinx.datetime.Clock

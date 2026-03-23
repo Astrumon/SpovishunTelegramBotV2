@@ -6,11 +6,13 @@ import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.domain.service.MemberService
 import com.ua.astrumon.domain.service.AutoRegisterService
+import org.slf4j.LoggerFactory
 
 class StartCommand(
     private val memberService: MemberService,
     private val autoRegisterService: AutoRegisterService
 ) {
+    private val logger = LoggerFactory.getLogger(StartCommand::class.java)
 
     suspend operator fun invoke(bot: Bot, update: Update) {
         val chatId = update.message?.chat?.id ?: return
@@ -66,7 +68,7 @@ class StartCommand(
             }
             
         } catch (e: Exception) {
-            println("Error adding chat members: ${e.message}")
+            logger.error("Error adding chat members: ${e.message}", e)
         }
     }
     
@@ -79,7 +81,7 @@ class StartCommand(
                 }
             }
         } catch (e: Exception) {
-            println("Error adding chat administrators: ${e.message}")
+            logger.error("Error adding chat administrators: ${e.message}", e)
         }
     }
     
@@ -101,7 +103,7 @@ class StartCommand(
                 parseMode = ParseMode.HTML
             )
         } catch (e: Exception) {
-            println("Error sending registration invitation: ${e.message}")
+            logger.error("Error sending registration invitation: ${e.message}", e)
         }
     }
     
@@ -113,7 +115,7 @@ class StartCommand(
         )
         
         if (result.isFailure) {
-            println("Failed to register member ${userId}: ${result.exceptionOrNull()?.message}")
+            logger.warn("Failed to register member $userId: ${result.exceptionOrNull()?.message}")
         }
     }
 }

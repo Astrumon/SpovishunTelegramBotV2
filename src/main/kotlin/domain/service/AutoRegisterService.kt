@@ -12,20 +12,19 @@ class AutoRegisterService(
 
     suspend fun ensureUserRegistered(userId: Long, username: String, firstName: String): ResultContainer<Member> {
         return try {
-            memberService.getMemberByUsername(username)
-                .onSuccess { member ->
-                    logger.debug("User $username already exists with ID: ${member.id}")
-                }
-                .onFailure {
-                    logger.info("Auto-registering new user: $username (ID: $userId)")
-                    memberService.createMember(userId, username, firstName)
-                        .onSuccess { member ->
-                            logger.info("Successfully auto-registered user: $username with ID: ${member.id}")
-                        }
-                        .onFailure { error ->
-                            logger.error("Failed to auto-register user: $username", error)
-                        }
-                }
+            val existing = memberService.getMemberByUsername(username)
+            if (existing.isSuccess) {
+                logger.debug("User $username already exists with ID: ${existing.getOrNull()?.id}")
+                return existing
+            }
+
+            logger.info("Auto-registering new user: $username (ID: $userId)")
+            memberService.createMember(userId, username, firstName).also { result ->
+                result.fold(
+                    onSuccess = { member -> logger.info("Successfully auto-registered user: $username with ID: ${member.id}") },
+                    onFailure = { error -> logger.error("Failed to auto-register user: $username", error) }
+                )
+            }
         } catch (e: Exception) {
             logger.error("Unexpected error during auto-registration for user: $username", e)
             ResultContainer.failure(DatabaseException("Unexpected error during auto-registration", e))

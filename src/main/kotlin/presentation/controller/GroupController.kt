@@ -39,11 +39,9 @@ class GroupController(
                 }
             },
             onFailure = {
-                println("DEBUG: Fold onFailure called with: ${it.userMessage}")
                 "❌ Помилка завантаження груп: ${it.userMessage}"
             }
         )
-        println("DEBUG: Final result from fold: $result")
         return result
     }
 

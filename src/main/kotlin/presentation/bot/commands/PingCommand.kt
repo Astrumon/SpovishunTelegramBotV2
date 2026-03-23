@@ -83,7 +83,7 @@ class PingCommand(
         }
 
         val group = groupResult.getOrNull()
-        if (group?.members?.isEmpty() != false) {
+        if (group?.members.isNullOrEmpty()) {
             bot.sendMessage(
                 chatId = ChatId.fromId(chatId),
                 text = "Немає кого пінгувати.",

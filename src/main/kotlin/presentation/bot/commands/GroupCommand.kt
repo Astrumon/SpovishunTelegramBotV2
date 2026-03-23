@@ -4,7 +4,6 @@ import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
-import com.ua.astrumon.data.memory.repository.GroupMemberRepositoryMockImpl
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.presentation.controller.GroupController
 import org.slf4j.LoggerFactory
@@ -14,7 +13,7 @@ class GroupCommand(
     private val groupController: GroupController,
     private val adminIds: Set<Long>
 ) {
-    private val logger = LoggerFactory.getLogger(GroupMemberRepositoryMockImpl::class.java)
+    private val logger = LoggerFactory.getLogger(GroupCommand::class.java)
     
     suspend fun showGroups(bot: Bot, update: Update) {
         val user = update.message?.from ?: return

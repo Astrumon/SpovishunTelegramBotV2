@@ -8,11 +8,17 @@ import com.ua.astrumon.domain.model.Member
 import org.slf4j.LoggerFactory
 
 class AutoRegisterService(
-    private val memberService: MemberService
+    private val memberService: MemberService,
+    private val chatService: ChatService
 ) {
     private val logger = LoggerFactory.getLogger(AutoRegisterService::class.java)
 
-    suspend fun ensureUserRegistered(chatId: Long, userId: Long, username: String, firstName: String): ResultContainer<Member> {
+    suspend fun ensureUserRegistered(chatId: Long, userId: Long, username: String, firstName: String, chatTitle: String? = null, chatType: String? = null): ResultContainer<Member> {
+        chatService.ensureChat(chatId, chatTitle, chatType)
+            .onFailure { error ->
+                logger.error("Failed to ensure chat registration for chatId: $chatId", error)
+            }
+
         // Validate userId
         if (userId == -1L) {
             logger.warn("Attempted to register user with invalid userId: -1, username: $username")

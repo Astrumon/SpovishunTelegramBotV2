@@ -3,7 +3,9 @@ package data.repository
 import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
+import com.ua.astrumon.data.db.repository.ChatRepositoryImpl
 import com.ua.astrumon.data.db.repository.GroupMemberRepositoryImpl
+import com.ua.astrumon.data.db.table.Chats
 import com.ua.astrumon.data.db.table.GroupMembers
 import com.ua.astrumon.data.db.table.Groups
 import com.ua.astrumon.data.db.table.Members
@@ -21,6 +23,7 @@ import kotlin.test.assertTrue
 class GroupMemberRepositoryImplTest {
 
     private val repository = GroupMemberRepositoryImpl()
+    private val chatRepository = ChatRepositoryImpl()
     private val chatId = 100L
 
     @BeforeTest
@@ -30,7 +33,12 @@ class GroupMemberRepositoryImplTest {
             GroupMembers.deleteAll()
             Groups.deleteAll()
             Members.deleteAll()
+            Chats.deleteAll()
         }
+    }
+
+    private suspend fun ensureChat(chatId: Long) {
+        chatRepository.save(chatId, null, null)
     }
 
     private fun insertMember(username: String, userId: Long = username.hashCode().toLong()) {
@@ -58,6 +66,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `addMemberToGroup should succeed when group and member exist`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertMember("alice")
 
@@ -78,6 +87,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `addMemberToGroup should return failure when member not exists`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
 
         val result = repository.addMemberToGroup(chatId, "devs", "nonexistent")
@@ -88,6 +98,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `addMemberToGroup should return failure when member already in group`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertMember("alice")
         repository.addMemberToGroup(chatId, "devs", "alice")
@@ -100,6 +111,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `getGroupMembers should return empty list for group with no members`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
 
         val result = repository.getGroupMembers(chatId, "devs")
@@ -110,6 +122,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `getGroupMembers should return all members of group`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertMember("alice")
         insertMember("bob")
@@ -134,6 +147,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `removeMemberFromGroup should succeed when member is in group`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertMember("alice")
         repository.addMemberToGroup(chatId, "devs", "alice")
@@ -158,6 +172,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `removeMemberFromGroup should return failure when member not exists`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
 
         val result = repository.removeMemberFromGroup(chatId, "devs", "nonexistent")
@@ -168,6 +183,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `removeMemberFromGroup should return failure when member not in group`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertMember("alice")
 
@@ -179,6 +195,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `members should be independent across groups`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertGroup("ops")
         insertMember("alice")
@@ -198,6 +215,7 @@ class GroupMemberRepositoryImplTest {
 
     @Test
     fun `removing member from one group should not affect other groups`() = runTest {
+        ensureChat(chatId)
         insertGroup("devs")
         insertGroup("ops")
         insertMember("alice")

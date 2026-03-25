@@ -1,6 +1,7 @@
 package data.db
 
 import com.ua.astrumon.common.exception.DatabaseException
+import com.ua.astrumon.data.db.table.Chats
 import com.ua.astrumon.data.db.table.GroupMembers
 import com.ua.astrumon.data.db.table.Groups
 import com.ua.astrumon.data.db.table.Members
@@ -35,7 +36,7 @@ object TestDatabaseFactory {
             Database.connect(dataSource)
 
             transaction {
-                SchemaUtils.create(Members, Groups, GroupMembers)
+                SchemaUtils.create(Chats, Members, Groups, GroupMembers)
             }
 
             initialized = true

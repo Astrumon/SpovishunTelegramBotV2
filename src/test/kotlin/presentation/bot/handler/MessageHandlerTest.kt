@@ -46,13 +46,13 @@ class MessageHandlerTest {
         // Given
         val update = createUpdate()
         val member = Member(1L, chatId, userId, "alice", "Alice", null)
-        coEvery { autoRegisterService.ensureUserRegistered(chatId, userId, "alice", "Alice") } returns ResultContainer.success(member)
+        coEvery { autoRegisterService.ensureUserRegistered(chatId, userId, "alice", "Alice", null, "group") } returns ResultContainer.success(member)
 
         // When
         messageHandler.handleIncomingMessage(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(chatId, userId, "alice", "Alice") }
+        coVerify { autoRegisterService.ensureUserRegistered(chatId, userId, "alice", "Alice", null, "group") }
     }
 
     @Test
@@ -61,13 +61,13 @@ class MessageHandlerTest {
         val user = User(id = userId, isBot = false, firstName = "Alice", username = null)
         val update = createUpdate(fromUser = user)
         val member = Member(1L, chatId, userId, "user_$userId", "Alice", null)
-        coEvery { autoRegisterService.ensureUserRegistered(chatId, userId, "user_$userId", "Alice") } returns ResultContainer.success(member)
+        coEvery { autoRegisterService.ensureUserRegistered(chatId, userId, "user_$userId", "Alice", null, "group") } returns ResultContainer.success(member)
 
         // When
         messageHandler.handleIncomingMessage(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(chatId, userId, "user_$userId", "Alice") }
+        coVerify { autoRegisterService.ensureUserRegistered(chatId, userId, "user_$userId", "Alice", null, "group") }
     }
 
     @Test
@@ -79,7 +79,7 @@ class MessageHandlerTest {
         messageHandler.handleIncomingMessage(bot, update)
 
         // Then
-        coVerify(exactly = 0) { autoRegisterService.ensureUserRegistered(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { autoRegisterService.ensureUserRegistered(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -91,6 +91,6 @@ class MessageHandlerTest {
         messageHandler.handleIncomingMessage(bot, update)
 
         // Then
-        coVerify(exactly = 0) { autoRegisterService.ensureUserRegistered(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { autoRegisterService.ensureUserRegistered(any(), any(), any(), any(), any(), any()) }
     }
 }

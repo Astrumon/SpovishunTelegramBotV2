@@ -3,7 +3,7 @@ package com.ua.astrumon.data.db.table
 import org.jetbrains.exposed.dao.id.LongIdTable
 
 object Groups: LongIdTable("groups") {
-    val chatId = long("chat_id")
+    val chatId = reference("chat_id", Chats.chatId)
     val name = varchar("name", 64)
 
     init {

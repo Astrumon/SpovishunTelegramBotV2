@@ -6,13 +6,16 @@ import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.Chat
 import com.ua.astrumon.domain.service.AutoRegisterService
+import com.ua.astrumon.domain.service.ChatService
 import com.ua.astrumon.domain.service.MemberService
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,12 +25,16 @@ import kotlin.test.assertTrue
 class AutoRegisterServiceTest {
 
     private val memberService: MemberService = mockk()
+    private val chatService: ChatService = mockk()
     private lateinit var autoRegisterService: AutoRegisterService
 
     @BeforeTest
     fun setup() {
         clearAllMocks()
-        autoRegisterService = AutoRegisterService(memberService)
+        autoRegisterService = AutoRegisterService(memberService, chatService)
+        coEvery { chatService.ensureChat(any(), any(), any()) } returns ResultContainer.success(
+            Chat(123L, null, null, Clock.System.now())
+        )
     }
 
     @Test

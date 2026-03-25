@@ -22,7 +22,9 @@ class MessageHandler(
             chatId = chatId,
             userId = user.id,
             username = username,
-            firstName = firstName
+            firstName = firstName,
+            chatTitle = message.chat.title,
+            chatType = message.chat.type
         ).onSuccess { member ->
             logger.debug("User ${member.username} is registered (ID: ${member.id})")
         }.onFailure { error ->

@@ -136,6 +136,38 @@ feature/spovishun-{N}-short-description
 - `{N}`: next sequential task number, never reuse
 - `short-description`: max 3 words, kebab-case
 
+## MCP Servers & Plugins
+
+### Project-level MCP servers (`.claude/settings.json`)
+
+| Server | Purpose | Transport |
+|---|---|---|
+| `context7` | Up-to-date, version-specific library docs (Exposed, Ktor, Koin, etc.) | stdio (`@upstash/context7-mcp`) |
+
+Append `use context7` to any prompt to fetch current docs before code generation.
+
+### User-level setup (requires credentials)
+
+**GitHub MCP** — issues, PRs, code search:
+```bash
+claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer <YOUR_GITHUB_PAT>"}}'
+```
+
+**DBHub (PostgreSQL)** — live schema inspection and SQL queries:
+```bash
+claude mcp add db -- npx -y @bytebase/dbhub@latest --dsn "$DATABASE_URL"
+```
+> Use a read-only connection string. Never store credentials in committed files.
+
+### Plugins (user-level)
+
+| Plugin | Purpose | Install |
+|---|---|---|
+| `pg@aiguide` | PostgreSQL skills + doc search MCP (`mcp.tigerdata.com`) | `claude plugin install pg@aiguide` |
+| `pr-review-toolkit` | Multi-agent PR review (tests, types, errors, docs) | `claude plugin install pr-review-toolkit@claude-code-plugins` |
+
+Marketplaces required: `timescale/pg-aiguide`, `anthropics/claude-code`.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` (gitignored). Required variables:

@@ -229,7 +229,7 @@ async function main() {
       '*Work within the scope of this task. Do not go beyond what is described.*'
     ].filter(l => l !== undefined).join('\n');
 
-    process.stdout.write(JSON.stringify({ systemPrompt }));
+    process.stdout.write(JSON.stringify({ additionalContext: systemPrompt }));
     process.exit(0);
 
   } catch (err) {

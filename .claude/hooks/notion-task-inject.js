@@ -142,6 +142,7 @@ function extractBranchFromBlocks(blocks) {
 function gitCheckoutFromDevelop(branch) {
   try {
     execSync('git checkout develop', { stdio: 'pipe' });
+    execSync('git pull origin develop', { stdio: 'pipe' });
     execSync(`git checkout -b "${branch}"`, { stdio: 'pipe' });
     return { ok: true, message: `Created and switched to: ${branch}` };
   } catch (err) {

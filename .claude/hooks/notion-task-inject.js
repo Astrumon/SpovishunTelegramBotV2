@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const DATABASE_ID = '3193462f68a980f1b43bc1e201189bfd';
+const DATABASE_ID = '3193462f68a980d69ec9c7ccc6329b88';
 const NOTION_VERSION = '2022-06-28';
 
 const TRIGGER_WORDS = [

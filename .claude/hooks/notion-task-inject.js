@@ -3,6 +3,9 @@
  * UserPromptSubmit hook — інжектує контекст активної Notion-задачі (In progress)
  * у системний промпт Claude Code при наявності trigger-слів у запиті.
  *
+ * Якщо промпт містить "start task" / "почати задачу" / "нова задача" —
+ * також створює git-гілку від develop.
+ *
  * Вимагає: NOTION_SKILLS_TOKEN (або NOTION_TOKEN) у env або .env файлі.
  * Завжди завершується з exit(0) — помилки не блокують роботу.
  */
@@ -10,8 +13,8 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
-// Database ID дошки Spovishun (з ancestor-path задачі)
 const DATABASE_ID = '3193462f68a980d69ec9c7ccc6329b88';
 const NOTION_VERSION = '2022-06-28';
 
@@ -22,6 +25,12 @@ const TRIGGER_WORDS = [
   // Ukrainian
   'реалізу', 'виправ', 'додай', 'створи', 'напиш', 'зроби', 'зміни',
   'розроби', 'задача', 'таск', 'фіч'
+];
+
+const START_TASK_TRIGGERS = [
+  'start task', 'start branch', 'checkout task',
+  'почати задачу', 'нова задача', 'беру задачу', 'починаю задачу',
+  'створи гілку', 'нова гілка', 'перейди на гілку'
 ];
 
 function loadToken() {
@@ -70,6 +79,10 @@ function notionRequest(token, method, apiPath, body) {
   });
 }
 
+function richText(blocks) {
+  return (blocks || []).map(rt => rt.plain_text).join('').trim();
+}
+
 function extractBlocks(blocks) {
   const lines = [];
 
@@ -95,6 +108,47 @@ function extractBlocks(blocks) {
   return lines.join('\n').trim();
 }
 
+function extractBranchFromBlocks(blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const type = block.type;
+    if (!type) continue;
+
+    const content = block[type];
+    if (!content) continue;
+
+    const text = richText(content.rich_text);
+
+    if (text.includes('Branch name') || text.includes('🌿')) {
+      for (let j = i + 1; j < blocks.length && j <= i + 3; j++) {
+        const next = blocks[j];
+        if (!next || !next.type) continue;
+        const nextContent = next[next.type];
+        if (!nextContent) continue;
+        const nextText = richText(nextContent.rich_text);
+        if (nextText && nextText.startsWith('feature/')) {
+          return nextText.trim();
+        }
+      }
+    }
+
+    if (text.startsWith('feature/spovishun-')) {
+      return text.trim();
+    }
+  }
+  return null;
+}
+
+function gitCheckoutFromDevelop(branch) {
+  try {
+    execSync('git checkout develop', { stdio: 'pipe' });
+    execSync(`git checkout -b "${branch}"`, { stdio: 'pipe' });
+    return { ok: true, message: `Created and switched to: ${branch}` };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+}
+
 async function main() {
   let raw = '';
   process.stdin.setEncoding('utf8');
@@ -104,7 +158,10 @@ async function main() {
   try { data = JSON.parse(raw); } catch { process.exit(0); }
 
   const prompt = (data.prompt || '').toLowerCase();
-  const hasTrigger = TRIGGER_WORDS.some(word => prompt.includes(word));
+
+  const isStartTask = START_TASK_TRIGGERS.some(t => prompt.includes(t));
+  const hasTrigger = isStartTask || TRIGGER_WORDS.some(word => prompt.includes(word));
+
   if (!hasTrigger) process.exit(0);
 
   const token = loadToken();
@@ -126,18 +183,50 @@ async function main() {
     const pageId = page.id.replace(/-/g, '');
 
     const blocksResult = await notionRequest(token, 'GET', `/v1/blocks/${pageId}/children?page_size=100`, null);
-    const blocks = (blocksResult?.results || []).filter(b => b.type !== 'toggle');
-    const content = extractBlocks(blocks);
+    const allBlocks = blocksResult?.results || [];
+    const contentBlocks = allBlocks.filter(b => b.type !== 'toggle');
+    const content = extractBlocks(contentBlocks);
+
+    let branchNote = '';
+
+    if (isStartTask) {
+      let branch = extractBranchFromBlocks(allBlocks);
+
+      // Fallback: derive from title
+      if (!branch) {
+        const numMatch = name.match(/spovishun-(\d+)/i);
+        if (numMatch) {
+          const taskNum = numMatch[1];
+          const slug = name
+            .replace(/^feature\/spovishun-\d+:\s*/i, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .split('-').slice(0, 3).join('-');
+          branch = `feature/spovishun-${taskNum}-${slug}`;
+        }
+      }
+
+      if (branch) {
+        const result = gitCheckoutFromDevelop(branch);
+        branchNote = result.ok
+          ? `\n**Git:** ${result.message}`
+          : `\n**Git error:** ${result.message}`;
+      }
+    }
 
     const systemPrompt = [
       '## 🪝 Active Task (Notion — In progress)',
       `**${name}**`,
       '',
       content,
+      branchNote,
       '',
       '---',
       '*Work within the scope of this task. Do not go beyond what is described.*'
-    ].join('\n');
+    ].filter(l => l !== undefined).join('\n');
 
     process.stdout.write(JSON.stringify({ systemPrompt }));
     process.exit(0);

@@ -13,7 +13,7 @@
           {
             "type": "command",
             "command": "node .claude/hooks/notion-task-inject.js",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }

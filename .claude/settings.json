@@ -4,5 +4,19 @@
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"]
     }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/notion-task-inject.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

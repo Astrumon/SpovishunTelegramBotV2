@@ -173,7 +173,7 @@ async function main() {
 
   try {
     const queryResult = await notionRequest(token, 'POST', `/v1/databases/${DATABASE_ID}/query`, {
-      filter: { property: 'Status', status: { equals: 'In progress' } },
+      filter: { property: 'Status', status: { equals: 'To do' } },
       page_size: 1
     });
 

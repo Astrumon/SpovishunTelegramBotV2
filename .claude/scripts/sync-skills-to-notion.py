@@ -163,24 +163,44 @@ def sync_skill(name: str, description: str, body: str, existing: dict, token: st
         print(f"  + {name} (created)" if ok else f"  ! {name} (create failed)", file=sys.stderr if not ok else sys.stdout)
 
 
+LAST_SYNC_FILE = Path(__file__).parent / ".skills-last-sync"
+
+
+def get_changed_skills() -> list[Path]:
+    if not LAST_SYNC_FILE.exists():
+        return sorted(SKILLS_DIR.rglob("SKILL.md"))
+    last_sync = LAST_SYNC_FILE.stat().st_mtime
+    return sorted(p for p in SKILLS_DIR.rglob("SKILL.md") if p.stat().st_mtime > last_sync)
+
+
 def main():
     force = "--force" in sys.argv
     if not force and not is_skill_change():
-        sys.exit(0)
+        # Called from Gradle — incremental mode
+        skill_files = get_changed_skills()
+        if not skill_files:
+            print("No changed skills, skipping.")
+            sys.exit(0)
+    elif force:
+        skill_files = sorted(SKILLS_DIR.rglob("SKILL.md"))
+    else:
+        # Hook mode — single changed file from stdin already validated
+        skill_files = sorted(SKILLS_DIR.rglob("SKILL.md"))
 
     token = load_token()
     if not token:
         print("Error: NOTION_SKILLS_TOKEN not set in env or .env", file=sys.stderr)
         sys.exit(1)
 
-    print("Syncing skills to Notion...")
+    print(f"Syncing {len(skill_files)} skill(s) to Notion...")
     existing = get_existing_child_pages(token)
 
-    for skill_md in sorted(SKILLS_DIR.rglob("SKILL.md")):
+    for skill_md in skill_files:
         content = skill_md.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(content)
         sync_skill(fm.get("name", skill_md.parent.name), fm.get("description", ""), body, existing, token)
 
+    LAST_SYNC_FILE.touch()
     print("Done.")
 
 

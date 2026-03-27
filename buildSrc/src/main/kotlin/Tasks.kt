@@ -1,4 +1,5 @@
 import org.gradle.api.Project
+import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.named
@@ -51,6 +52,12 @@ fun Project.registerAppTasks() {
         classpath = mainClasspath
         mainClass.set("com.ua.astrumon.tools.MigrationGeneratorKt")
         environment("PROFILE", "dev")
+    }
+
+    tasks.register<Exec>("syncSkillsToNotion") {
+        group = "notion"
+        description = "Sync .claude/skills/*/SKILL.md files to Notion"
+        commandLine("python", ".claude/scripts/sync-skills-to-notion.py")
     }
 
     tasks.named("compileKotlin") {

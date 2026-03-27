@@ -134,3 +134,4 @@ yarn-error.log*
 # Claude Code
 # ======================
 .claude/settings.local.json
+.claude/scripts/.skills-last-sync

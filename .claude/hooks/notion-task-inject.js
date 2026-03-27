@@ -28,7 +28,7 @@ const TRIGGER_WORDS = [
 ];
 
 const START_TASK_TRIGGERS = [
-  'start task', 'start branch', 'checkout task',
+  'start new task', 'start task', 'start branch', 'checkout task',
   'почати задачу', 'нова задача', 'беру задачу', 'починаю задачу',
   'створи гілку', 'нова гілка', 'перейди на гілку'
 ];

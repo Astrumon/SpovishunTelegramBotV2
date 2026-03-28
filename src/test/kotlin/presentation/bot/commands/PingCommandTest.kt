@@ -11,7 +11,9 @@ import com.github.kotlintelegrambot.types.TelegramBotResult
 import com.ua.astrumon.common.exception.DatabaseException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.result.ResultContainer
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.GroupService
 import com.ua.astrumon.domain.service.GroupWithMembers
@@ -31,6 +33,7 @@ class PingCommandTest {
     private val memberService: MemberService = mockk()
     private val groupService: GroupService = mockk()
     private val autoRegisterService: AutoRegisterService = mockk()
+    private val botAdminUtils: BotAdminUtils = mockk()
     private val bot: Bot = mockk(relaxed = true)
     private lateinit var pingCommand: PingCommand
 
@@ -42,8 +45,9 @@ class PingCommandTest {
     @BeforeTest
     fun setup() {
         clearAllMocks()
-        pingCommand = PingCommand(memberService, groupService, autoRegisterService)
-        coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any()) } returns ResultContainer.success(member)
+        pingCommand = PingCommand(memberService, groupService, autoRegisterService, botAdminUtils)
+        coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any(), any()) } returns ResultContainer.success(member)
+        every { botAdminUtils.getMemberRole(any(), any(), any()) } returns MemberRole.MEMBER
     }
 
     private fun createUpdate(

@@ -5,11 +5,14 @@ import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.MemberService
+import com.ua.astrumon.domain.BotAdminUtils
 import org.slf4j.LoggerFactory
 
 class RegisterCommand(
-    private val memberService: MemberService
+    private val memberService: MemberService,
+    private val botAdminUtils: BotAdminUtils
 ) {
     private val logger = LoggerFactory.getLogger(RegisterCommand::class.java)
     
@@ -20,31 +23,27 @@ class RegisterCommand(
         logger.info("Register command invoked - chatId: {}, userId: {}, username: {}, firstName: {}", 
             chatId, user.id, user.username, user.firstName)
 
-        val member = Member(
-            id = 0, // Will be set by database
-            chatId = chatId,
-            userId = user.id,
-            username = user.username ?: "user_${user.id}",
-            firstName = user.firstName,
-            joinedAt = null
-        )
+        val role = botAdminUtils.getMemberRole(bot, chatId, user.id)
         
         val result = memberService.createMember(
             chatId = chatId,
-            userId = member.userId,
-            username = member.username,
-            firstName = member.firstName
+            userId = user.id,
+            username = user.username ?: "user_${user.id}",
+            firstName =user.firstName,
+            role = role
         )
         
         if (result.isSuccess) {
-            logger.info("Successfully registered member: userId: {}, username: {}", user.id, user.username)
+            logger.info("Successfully registered member: userId: {}, username: {}, role: {}", 
+                user.id, user.username, role)
         } else {
             logger.info("Member already exists or registration failed: userId: {}, username: {}, error: {}", 
                 user.id, user.username, result.exceptionOrNull()?.message)
         }
         
         val responseText = if (result.isSuccess) {
-            "✅ ${user.firstName}, ви успішно зареєстровані в системі!"
+            val roleText = if (role == MemberRole.ADMIN) " як адміністратор 🔐" else ""
+            "✅ ${user.firstName}, ви успішно зареєстровані в системі$roleText!"
         } else {
             "ℹ️ ${user.firstName}, ви вже зареєстровані в системі."
         }

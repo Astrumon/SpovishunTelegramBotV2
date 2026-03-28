@@ -5,6 +5,7 @@ import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.model.badge
@@ -16,16 +17,19 @@ import org.slf4j.LoggerFactory
 class GroupController(
     private val groupService: GroupService,
     private val memberService: MemberService,
-    private val autoRegisterService: AutoRegisterService
+    private val autoRegisterService: AutoRegisterService,
+    private val botAdminUtils: BotAdminUtils,
 ) {
     private val logger = LoggerFactory.getLogger(GroupController::class.java)
 
-    suspend fun getGroups(chatId: Long, member: Member): String {
+    suspend fun getGroups(bot: Bot, chatId: Long, member: Member): String {
+        val userRole = botAdminUtils.getMemberRole(bot, chatId, member.userId)
         autoRegisterService.ensureUserRegistered(
             chatId = chatId,
             userId = member.userId,
             username = member.username,
-            firstName = member.firstName
+            firstName = member.firstName,
+            userRole = userRole
         )
 
         return groupService.getAllGroupsWithMembers(chatId).fold(
@@ -53,7 +57,7 @@ class GroupController(
         )
     }
 
-    suspend fun createGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+    suspend fun createGroup(chatId: Long, userId: Long, args: List<String>): String {
         if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
@@ -75,7 +79,7 @@ class GroupController(
         )
     }
 
-    suspend fun deleteGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+    suspend fun deleteGroup(chatId: Long, userId: Long, args: List<String>): String {
         if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
@@ -99,7 +103,7 @@ class GroupController(
         )
     }
 
-    suspend fun addUserToGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+    suspend fun addUserToGroup(chatId: Long, userId: Long, args: List<String>): String {
         if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {
@@ -134,7 +138,7 @@ class GroupController(
         )
     }
 
-    suspend fun removeUserFromGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
+    suspend fun removeUserFromGroup(chatId: Long, userId: Long, args: List<String>): String {
         if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {

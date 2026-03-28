@@ -355,4 +355,25 @@ class MemberServiceTest {
         assertTrue(result.exceptionOrNull() is ResourceNotFoundException)
         coVerify(exactly = 0) { memberRepository.updateRole(any(), any(), any()) }
     }
+
+    @Test
+    fun `setMemberRole should promote member to admin successfully`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val member = Member(1L, chatId, userId, "alice", "Alice", null, role = MemberRole.MEMBER)
+        val adminMember = member.copy(role = MemberRole.ADMIN)
+
+        coEvery { memberRepository.findByChatIdAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberRepository.updateRole(chatId, userId, MemberRole.ADMIN) } returns ResultContainer.success(adminMember)
+
+        // When
+        val result = memberService.setMemberRole(chatId, userId, MemberRole.ADMIN)
+
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(MemberRole.ADMIN, result.getOrThrow().role)
+        assertEquals("alice", result.getOrThrow().username)
+        coVerify { memberRepository.updateRole(chatId, userId, MemberRole.ADMIN) }
+    }
 }

@@ -5,15 +5,25 @@ import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.domain.model.MemberRole
 import org.slf4j.LoggerFactory
 
 class AutoRegisterService(
     private val memberService: MemberService,
-    private val chatService: ChatService
+    private val chatService: ChatService,
 ) {
     private val logger = LoggerFactory.getLogger(AutoRegisterService::class.java)
 
-    suspend fun ensureUserRegistered(chatId: Long, userId: Long, username: String, firstName: String, chatTitle: String? = null, chatType: String? = null): ResultContainer<Member> {
+    suspend fun ensureUserRegistered(
+        chatId: Long,
+        userId: Long,
+        username: String,
+        firstName: String,
+        userRole: MemberRole,
+        chatTitle: String? = null,
+        chatType: String? = null
+    ): ResultContainer<Member> {
         chatService.ensureChat(chatId, chatTitle, chatType)
             .onFailure { error ->
                 logger.error("Failed to ensure chat registration for chatId: $chatId", error)
@@ -35,7 +45,7 @@ class AutoRegisterService(
                     onFailure = { error ->
                         if (error is ResourceNotFoundException) {
                             logger.info("Auto-registering new user: $username (ID: $userId)")
-                            memberService.createMember(chatId, userId, username, firstName)
+                            memberService.createMember(chatId, userId, username, firstName, role = userRole)
                                 .onSuccess { member ->
                                     logger.info("Successfully auto-registered user: $username with ID: ${member.id}")
                                 }

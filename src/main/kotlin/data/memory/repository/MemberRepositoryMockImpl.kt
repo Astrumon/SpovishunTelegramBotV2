@@ -33,7 +33,8 @@ class MemberRepositoryMockImpl : MemberRepository {
         userId: Long,
         username: String,
         firstName: String,
-        joinedAt: Instant?
+        joinedAt: Instant?,
+        role: MemberRole
     ): ResultContainer<Member> {
         logger.info("DEV: Saving member - userId: $userId, username: $username, firstName: $firstName")
         val member = Member(
@@ -43,7 +44,7 @@ class MemberRepositoryMockImpl : MemberRepository {
             firstName = firstName,
             joinedAt = joinedAt,
             chatId = chatId,
-            role = MemberRole.MEMBER
+            role = role
         )
         members[username] = member
         logger.info("DEV: Member saved successfully: $member")

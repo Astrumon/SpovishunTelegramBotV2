@@ -11,7 +11,9 @@ import com.github.kotlintelegrambot.types.TelegramBotResult
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.MemberService
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.presentation.bot.commands.RegisterCommand
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -25,6 +27,7 @@ import kotlin.test.Test
 class RegisterCommandTest {
 
     private val memberService: MemberService = mockk()
+    private val botAdminUtils: BotAdminUtils = mockk()
     private val bot: Bot = mockk(relaxed = true)
     private lateinit var registerCommand: RegisterCommand
 
@@ -34,7 +37,8 @@ class RegisterCommandTest {
     @BeforeTest
     fun setup() {
         clearAllMocks()
-        registerCommand = RegisterCommand(memberService)
+        registerCommand = RegisterCommand(memberService, botAdminUtils)
+        every { botAdminUtils.getMemberRole(any(), any(), any()) } returns MemberRole.MEMBER
     }
 
     private fun createUpdate(
@@ -51,7 +55,7 @@ class RegisterCommandTest {
         // Given
         val update = createUpdate()
         val member = Member(1L, chatId, userId, "alice", "Alice", null)
-        coEvery { memberService.createMember(chatId, userId, "alice", "Alice") } returns ResultContainer.success(member)
+        coEvery { memberService.createMember(chatId, userId, "alice", "Alice", MemberRole.MEMBER) } returns ResultContainer.success(member)
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
@@ -71,7 +75,7 @@ class RegisterCommandTest {
     fun `invoke should send already registered message when registration fails`() = runTest {
         // Given
         val update = createUpdate()
-        coEvery { memberService.createMember(chatId, userId, "alice", "Alice") } returns
+        coEvery { memberService.createMember(chatId, userId, "alice", "Alice", MemberRole.MEMBER) } returns
                 ResultContainer.failure(DuplicateResourceException("Member", "alice"))
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
@@ -94,14 +98,14 @@ class RegisterCommandTest {
         val user = User(id = userId, isBot = false, firstName = "Alice", username = null)
         val update = createUpdate(fromUser = user)
         val member = Member(1L, chatId, userId, "user_$userId", "Alice", null)
-        coEvery { memberService.createMember(chatId, userId, "user_$userId", "Alice") } returns ResultContainer.success(member)
+        coEvery { memberService.createMember(chatId, userId, "user_$userId", "Alice", MemberRole.MEMBER) } returns ResultContainer.success(member)
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         registerCommand(bot, update)
 
         // Then
-        coVerify { memberService.createMember(chatId, userId, "user_$userId", "Alice") }
+        coVerify { memberService.createMember(chatId, userId, "user_$userId", "Alice", MemberRole.MEMBER) }
     }
 
     @Test

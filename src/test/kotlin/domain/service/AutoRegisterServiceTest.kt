@@ -7,6 +7,7 @@ import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.Chat
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.ChatService
 import com.ua.astrumon.domain.service.MemberService
@@ -44,12 +45,13 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
-        val existingMember = Member(1L, chatId, userId, username, firstName, null)
+        val userRole = MemberRole.MEMBER
+        val existingMember = Member(1L, chatId, userId, username, firstName, null, userRole)
 
         coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.success(existingMember)
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isSuccess)
@@ -65,14 +67,15 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
-        val newMember = Member(1L, chatId, userId, username, firstName, null)
+        val userRole = MemberRole.MEMBER
+        val newMember = Member(1L, chatId, userId, username, firstName, null, userRole)
         val notFoundError = ResourceNotFoundException("Member", username)
 
         coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
         coEvery { memberService.createMember(chatId, userId, username, firstName) } returns ResultContainer.success(newMember)
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isSuccess)
@@ -88,9 +91,10 @@ class AutoRegisterServiceTest {
         val userId = -1L
         val username = "alice"
         val firstName = "Alice"
+        val userRole = MemberRole.MEMBER
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isFailure)
@@ -107,6 +111,7 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
+        val userRole = MemberRole.MEMBER
         val notFoundError = ResourceNotFoundException("Member", username)
 
         coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
@@ -115,7 +120,7 @@ class AutoRegisterServiceTest {
         )
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isFailure)
@@ -133,12 +138,13 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
+        val userRole = MemberRole.MEMBER
         val error = DatabaseException("Database error")
 
         coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(error)
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isFailure)
@@ -153,12 +159,13 @@ class AutoRegisterServiceTest {
         val userId = 456L
         val username = "alice"
         val firstName = "Alice"
+        val userRole = MemberRole.MEMBER
         val unexpectedError = RuntimeException("Unexpected error")
 
         coEvery { memberService.getMemberByUsername(username) } throws unexpectedError
 
         // When
-        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName)
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
 
         // Then
         assertTrue(result.isFailure)
@@ -217,6 +224,54 @@ class AutoRegisterServiceTest {
         // Then
         assertFalse(result)
         coVerify { memberService.getMemberByUsername(username) }
+    }
+
+    @Test
+    fun `ensureUserRegistered should create new admin member when admin does not exist`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val username = "admin_alice"
+        val firstName = "Admin Alice"
+        val userRole = MemberRole.ADMIN
+        val newAdminMember = Member(1L, chatId, userId, username, firstName, null, userRole)
+        val notFoundError = ResourceNotFoundException("Member", username)
+
+        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.failure(notFoundError)
+        coEvery { memberService.createMember(chatId, userId, username, firstName, role = userRole) } returns ResultContainer.success(newAdminMember)
+
+        // When
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
+
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(newAdminMember, result.getOrThrow())
+        assertEquals(MemberRole.ADMIN, result.getOrThrow().role)
+        coVerify { memberService.getMemberByUsername(username) }
+        coVerify { memberService.createMember(chatId, userId, username, firstName, role = userRole) }
+    }
+
+    @Test
+    fun `ensureUserRegistered should return existing admin member when admin already exists`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val username = "admin_bob"
+        val firstName = "Admin Bob"
+        val userRole = MemberRole.ADMIN
+        val existingAdminMember = Member(1L, chatId, userId, username, firstName, null, userRole)
+
+        coEvery { memberService.getMemberByUsername(username) } returns ResultContainer.success(existingAdminMember)
+
+        // When
+        val result = autoRegisterService.ensureUserRegistered(chatId, userId, username, firstName, userRole)
+
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(existingAdminMember, result.getOrThrow())
+        assertEquals(MemberRole.ADMIN, result.getOrThrow().role)
+        coVerify { memberService.getMemberByUsername(username) }
+        coVerify(exactly = 0) { memberService.createMember(any(), any(), any(), any()) }
     }
 
 }

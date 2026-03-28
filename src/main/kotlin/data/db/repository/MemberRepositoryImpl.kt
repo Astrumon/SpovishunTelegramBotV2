@@ -38,7 +38,8 @@ class MemberRepositoryImpl : MemberRepository {
         userId: Long,
         username: String,
         firstName: String,
-        joinedAt: Instant?
+        joinedAt: Instant?,
+        role: MemberRole
     ): ResultContainer<Member> =
         safeDbQuery {
             val existing = findMemberByUsername(username)
@@ -51,7 +52,7 @@ class MemberRepositoryImpl : MemberRepository {
                 it[this@insertIgnore.userId] = userId
                 it[this@insertIgnore.username] = username
                 it[this@insertIgnore.firstname] = firstName
-                it[this@insertIgnore.role] = MemberRole.MEMBER.name
+                it[this@insertIgnore.role] = role.name
                 joinedAt?.let { joinedDate -> it[this@insertIgnore.joinedAt] = joinedDate }
             }
 

@@ -51,6 +51,8 @@ di ← wires everything, knows all layers
 
 **Command flow:** `Command` parses args → calls `Controller` → sends result to Telegram. Never call a `Service` directly from a `Command`.
 
+**Role system:** `MemberRole` enum (`ADMIN`, `MODERATOR`, `MEMBER`) lives in `domain/model/`. Access checks in controllers use `MemberService.getMemberByChatAndUserId()` — DB-based, not Telegram API. `BotAdminUtils` (`presentation/util/`) calls Telegram API only during registration/auto-registration to derive the initial role for new members.
+
 ## File Naming
 
 | Layer | Pattern | Example |
@@ -70,7 +72,7 @@ di ← wires everything, knows all layers
 
 1. Create `presentation/bot/commands/{Name}Command.kt`
 2. Create `presentation/controller/{Entity}Controller.kt` (if new domain area)
-3. Register both with `single` in `di/PresentationModule.kt`
+3. Register both with `single` in `di/PresentationModule.kt`; inject `BotAdminUtils` if the command needs admin/role checks
 4. Add routing entry in `presentation/bot/handler/MessageHandler.kt`
 5. Ensure `domain/service/` has the required service method
 6. Write unit test for the controller
@@ -84,7 +86,7 @@ di ← wires everything, knows all layers
 
 ## Database Migrations
 
-Migrations run automatically on startup in `prod` via Flyway. Migration files live in `src/main/resources/db/migration/` (PostgreSQL) and `src/main/resources/db/migration/sqlite/` (SQLite dev).
+Migrations run automatically on startup in `prod` via Flyway. Migration files live in `src/main/resources/db/migration/` (PostgreSQL only — no separate SQLite directory).
 
 To add a migration:
 1. Update the `Table` object in `data/db/table/`

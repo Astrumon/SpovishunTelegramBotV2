@@ -13,7 +13,7 @@ import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.MemberService
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.presentation.bot.commands.RegisterCommand
 import io.mockk.clearAllMocks
 import io.mockk.coEvery

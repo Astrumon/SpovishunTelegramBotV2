@@ -5,7 +5,6 @@ import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
-import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.model.MemberRole
 import org.slf4j.LoggerFactory
 

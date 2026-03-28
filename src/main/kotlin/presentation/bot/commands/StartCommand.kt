@@ -6,7 +6,7 @@ import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.common.util.VersionInfo
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import org.slf4j.LoggerFactory
 
 class StartCommand(private val autoRegisterService: AutoRegisterService, private val botAdminUtils: BotAdminUtils) {

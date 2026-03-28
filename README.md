@@ -30,13 +30,13 @@ src/main/kotlin/
 │   └── memory/         # In-memory repositories (dev)
 ├── di/                 # Koin modules
 ├── domain/
-│   ├── model/          # Pure Kotlin data classes
-│   ├── repository/     # Repository interfaces
-│   └── usecase/        # Business logic
+│   ├── BotAdminUtils.kt        # Telegram API admin check (used during registration)
+│   ├── model/                  # Pure Kotlin data classes (Member, Group, MemberRole)
+│   ├── repository/             # Repository interfaces
+│   └── service/                # Business logic (MemberService, GroupService, AutoRegisterService)
 ├── presentation/
-│   └── bot/            # Telegram bot + command handlers
-└── tools/
-    └── MigrationGenerator.kt  # CLI tool for generating migrations
+│   ├── bot/                    # Telegram bot + command handlers
+│   └── controller/             # Command business logic (GroupController, MembersController)
 src/main/resources/
 └── db/migration/
     ├── V1__init_schema.sql       # PostgreSQL (prod)
@@ -94,6 +94,7 @@ The `CLAUDE.md` file in the root provides Claude with full context: architecture
 | `/delgroup <назва>` | Видалити групу *(адмін)* |
 | `/addtogroup <група> @user` | Додати до групи *(адмін)* |
 | `/removefromgroup <група> @user` | Видалити з групи *(адмін)* |
+| `/grantrole <роль> @user` | Призначити роль учаснику *(тільки ADMIN)* |
 
 ## Environment Variables
 

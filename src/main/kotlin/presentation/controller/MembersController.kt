@@ -1,7 +1,7 @@
 package com.ua.astrumon.presentation.controller
 
 import com.github.kotlintelegrambot.Bot
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.badge
 import com.ua.astrumon.domain.service.AutoRegisterService

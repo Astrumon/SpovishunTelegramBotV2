@@ -1,12 +1,11 @@
-package com.ua.astrumon.domain
+package com.ua.astrumon.presentation.util
 
 import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.entities.ChatId
 import com.ua.astrumon.domain.model.MemberRole
-import org.koin.core.component.KoinComponent
 import org.slf4j.LoggerFactory
 
-class BotAdminUtils : KoinComponent {
+class BotAdminUtils {
     private val logger = LoggerFactory.getLogger(BotAdminUtils::class.java)
 
     fun isUserAdmin(bot: Bot, chatId: Long, userId: Long): Boolean {
@@ -30,5 +29,4 @@ class BotAdminUtils : KoinComponent {
     } else {
         MemberRole.MEMBER
     }
-
 }

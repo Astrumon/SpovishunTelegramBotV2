@@ -10,7 +10,9 @@ import com.github.kotlintelegrambot.entities.Update
 import com.github.kotlintelegrambot.entities.User
 import com.github.kotlintelegrambot.types.TelegramBotResult
 import com.ua.astrumon.common.result.ResultContainer
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.presentation.bot.commands.StartCommand
 import io.mockk.clearAllMocks
@@ -25,6 +27,7 @@ import kotlin.test.Test
 class StartCommandTest {
 
     private val autoRegisterService: AutoRegisterService = mockk()
+    private val botAdminUtils: BotAdminUtils = mockk()
     private val bot: Bot = mockk(relaxed = true)
     private lateinit var startCommand: StartCommand
 
@@ -36,8 +39,17 @@ class StartCommandTest {
     @BeforeTest
     fun setup() {
         clearAllMocks()
-        startCommand = StartCommand(autoRegisterService)
-        coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any()) } returns ResultContainer.success(member)
+        startCommand = StartCommand(autoRegisterService, botAdminUtils)
+        coEvery {
+            autoRegisterService.ensureUserRegistered(
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns ResultContainer.success(member)
+        every { botAdminUtils.getMemberRole(any(), any(), any()) } returns MemberRole.MEMBER
     }
 
     private fun createUpdate(
@@ -85,7 +97,15 @@ class StartCommandTest {
         startCommand(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(userId = userId, chatId = chatId, username = "alice", firstName = "Alice") }
+        coVerify {
+            autoRegisterService.ensureUserRegistered(
+                userId = userId,
+                chatId = chatId,
+                username = "alice",
+                firstName = "Alice",
+                userRole = MemberRole.MEMBER
+            )
+        }
     }
 
     @Test
@@ -97,14 +117,26 @@ class StartCommandTest {
         every { bot.getChat(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(
             Chat(id = chatId, type = "group")
         )
-        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(listOf(adminChatMember))
+        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(
+            listOf(
+                adminChatMember
+            )
+        )
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         startCommand(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(userId = 789L, chatId = chatId, username = "admin", firstName = "Admin") }
+        coVerify {
+            autoRegisterService.ensureUserRegistered(
+                userId = 789L,
+                chatId = chatId,
+                username = "admin",
+                firstName = "Admin",
+                userRole = MemberRole.MEMBER
+            )
+        }
     }
 
     @Test
@@ -116,14 +148,26 @@ class StartCommandTest {
         every { bot.getChat(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(
             Chat(id = chatId, type = "supergroup")
         )
-        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(listOf(adminChatMember))
+        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(
+            listOf(
+                adminChatMember
+            )
+        )
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         startCommand(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(userId = 789L, chatId = chatId, username = "admin", firstName = "Admin") }
+        coVerify {
+            autoRegisterService.ensureUserRegistered(
+                userId = 789L,
+                chatId = chatId,
+                username = "admin",
+                firstName = "Admin",
+                userRole = MemberRole.MEMBER
+            )
+        }
     }
 
     @Test
@@ -163,7 +207,15 @@ class StartCommandTest {
         startCommand(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(userId = userId, chatId = chatId, username = "al_ce__", firstName = "Alice") }
+        coVerify {
+            autoRegisterService.ensureUserRegistered(
+                userId = userId,
+                chatId = chatId,
+                username = "al_ce__",
+                firstName = "Alice",
+                userRole = MemberRole.MEMBER
+            )
+        }
     }
 
     @Test
@@ -180,7 +232,15 @@ class StartCommandTest {
         startCommand(bot, update)
 
         // Then
-        coVerify { autoRegisterService.ensureUserRegistered(userId = userId, chatId = chatId, username = "user_$userId", firstName = "Alice") }
+        coVerify {
+            autoRegisterService.ensureUserRegistered(
+                userId = userId,
+                chatId = chatId,
+                username = "user_$userId",
+                firstName = "Alice",
+                userRole = MemberRole.MEMBER
+            )
+        }
     }
 
     @Test

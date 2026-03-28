@@ -1,10 +1,16 @@
 #!/usr/bin/env node
 /**
- * UserPromptSubmit hook — інжектує контекст активної Notion-задачі (In progress)
- * у системний промпт Claude Code при наявності trigger-слів у запиті.
+ * UserPromptSubmit hook — інжектує контекст активної Notion-задачі у промпт.
  *
- * Якщо промпт містить "start task" / "почати задачу" / "нова задача" —
- * також створює git-гілку від develop.
+ * Кешує контекст у .dev-context/{branch}_prd/ — Notion API викликається
+ * один раз за весь час існування гілки. Між сесіями на тій самій гілці
+ * контекст читається з файлу (без мережевих запитів).
+ *
+ * Файли в папці задачі:
+ *   branch.txt    — точна назва гілки
+ *   context.md    — кешований текст задачі з Notion
+ *   plan.md       — затверджений план розробки (зберігається для історії)
+ *   session.lock  — "{ppid}:{timestamp}" поточної сесії (для дедуп ін'єкцій)
  *
  * Вимагає: NOTION_SKILLS_TOKEN (або NOTION_TOKEN) у env або .env файлі.
  * Завжди завершується з exit(0) — помилки не блокують роботу.
@@ -17,21 +23,21 @@ const { execSync } = require('child_process');
 
 const DATABASE_ID = '3193462f68a980d69ec9c7ccc6329b88';
 const NOTION_VERSION = '2022-06-28';
+const DEV_CONTEXT_DIR = '.dev-context';
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 годин
 
 const TRIGGER_WORDS = [
   // English
-  'implement', 'fix', 'add', 'create', 'write', 'build', 'update',
-  'refactor', 'debug', 'test', 'make', 'change', 'develop',
+  'implement', 'refactor',
   // Ukrainian
-  'реалізу', 'виправ', 'додай', 'створи', 'напиш', 'зроби', 'зміни',
-  'розроби', 'задача', 'таск', 'фіч'
+  'реалізуй', 'розроби', 'задача', 'таск', 'фіча'
 ];
 
-const START_TASK_TRIGGERS = [
-  'start new task', 'start task', 'start branch', 'checkout task',
-  'почати задачу', 'нова задача', 'беру задачу', 'починаю задачу',
-  'створи гілку', 'нова гілка', 'перейди на гілку'
-];
+const START_TASK_TRIGGERS = ['start new task', 'почати нову задачу', 'беру нову задачує'];
+
+const REFRESH_TRIGGERS = ['reread task', 'update task context', 'оновити контекст задачі', 'перечитати задачу'];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function loadToken() {
   if (process.env.NOTION_SKILLS_TOKEN) return process.env.NOTION_SKILLS_TOKEN;
@@ -45,7 +51,7 @@ function loadToken() {
     const skillsMatch = content.match(/^NOTION_SKILLS_TOKEN=(.+)$/m);
     if (skillsMatch) return skillsMatch[1].trim();
   } catch {
-    // .env not found
+    process.stderr.write(`[notion-task-inject] .env not found at ${envPath}\n`);
   }
   return null;
 }
@@ -85,14 +91,11 @@ function richText(blocks) {
 
 function extractBlocks(blocks) {
   const lines = [];
-
   for (const block of blocks) {
     const type = block.type;
     const content = block[type];
     if (!content) continue;
-
     const text = (content.rich_text || []).map(rt => rt.plain_text).join('');
-
     if (type.startsWith('heading_')) {
       if (text) lines.push(`\n**${text}**`);
     } else if (type === 'paragraph') {
@@ -102,9 +105,7 @@ function extractBlocks(blocks) {
     } else if (type === 'quote') {
       if (text) lines.push(`> ${text}`);
     }
-    // toggle (🤖 prompt) — пропускаємо навмисно
   }
-
   return lines.join('\n').trim();
 }
 
@@ -113,12 +114,9 @@ function extractBranchFromBlocks(blocks) {
     const block = blocks[i];
     const type = block.type;
     if (!type) continue;
-
     const content = block[type];
     if (!content) continue;
-
     const text = richText(content.rich_text);
-
     if (text.includes('Branch name') || text.includes('🌿')) {
       for (let j = i + 1; j < blocks.length && j <= i + 3; j++) {
         const next = blocks[j];
@@ -126,17 +124,20 @@ function extractBranchFromBlocks(blocks) {
         const nextContent = next[next.type];
         if (!nextContent) continue;
         const nextText = richText(nextContent.rich_text);
-        if (nextText && nextText.startsWith('feature/')) {
-          return nextText.trim();
-        }
+        if (nextText && nextText.startsWith('feature/')) return nextText.trim();
       }
     }
-
-    if (text.startsWith('feature/spovishun-')) {
-      return text.trim();
-    }
+    if (text.startsWith('feature/spovishun-')) return text.trim();
   }
   return null;
+}
+
+function getCurrentBranch() {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { stdio: 'pipe' }).toString().trim();
+  } catch {
+    return null;
+  }
 }
 
 function gitCheckoutFromDevelop(branch) {
@@ -150,6 +151,49 @@ function gitCheckoutFromDevelop(branch) {
   }
 }
 
+// ─── Dev Context folder ──────────────────────────────────────────────────────
+
+function branchToFolderName(branch) {
+  return branch.replace(/\//g, '-') + '_prd';
+}
+
+function getContextDir(branch) {
+  return path.join(process.cwd(), DEV_CONTEXT_DIR, branchToFolderName(branch));
+}
+
+/**
+ * Перевіряє чи lock належить поточній сесії.
+ * Формат lock-файлу: "{ppid}:{timestamp}"
+ * Захист від PID reuse на Windows: lock вважається невалідним після SESSION_TTL_MS.
+ */
+function isCurrentSession(lockFile) {
+  try {
+    const content = fs.readFileSync(lockFile, 'utf8').trim();
+    const [pidStr, tsStr] = content.split(':');
+    const pid = parseInt(pidStr, 10);
+    const ts = parseInt(tsStr, 10);
+
+    // Якщо lock старший за TTL — нова сесія (захист від PID reuse)
+    if (Date.now() - ts > SESSION_TTL_MS) return false;
+
+    process.kill(pid, 0); // throws якщо процес не існує
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeSessionLock(lockFile) {
+  const pid = process.ppid || process.pid;
+  fs.writeFileSync(lockFile, `${pid}:${Date.now()}`, 'utf8');
+}
+
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
 async function main() {
   let raw = '';
   process.stdin.setEncoding('utf8');
@@ -159,12 +203,36 @@ async function main() {
   try { data = JSON.parse(raw); } catch { process.exit(0); }
 
   const prompt = (data.prompt || '').toLowerCase();
-
   const isStartTask = START_TASK_TRIGGERS.some(t => prompt.includes(t));
-  const hasTrigger = isStartTask || TRIGGER_WORDS.some(word => prompt.includes(word));
+  const isRefresh = REFRESH_TRIGGERS.some(t => prompt.includes(t));
+  const hasTrigger = isStartTask || isRefresh || TRIGGER_WORDS.some(word => prompt.includes(word));
 
   if (!hasTrigger) process.exit(0);
 
+  const currentBranch = getCurrentBranch();
+
+  // ── Try to serve from cache (якщо не refresh) ────────────────────────────
+  if (!isRefresh && currentBranch && currentBranch !== 'develop' && currentBranch !== 'main') {
+    const ctxDir = getContextDir(currentBranch);
+    const contextFile = path.join(ctxDir, 'context.md');
+    const lockFile = path.join(ctxDir, 'session.lock');
+    const planFile = path.join(ctxDir, 'plan.md');
+
+    if (fs.existsSync(contextFile)) {
+      // Вже інжектували цієї сесії — пропустити
+      if (isCurrentSession(lockFile)) process.exit(0);
+
+      // Нова сесія, та сама гілка — inject з кешу
+      const context = fs.readFileSync(contextFile, 'utf8');
+      const plan = fs.existsSync(planFile) ? fs.readFileSync(planFile, 'utf8') : null;
+      writeSessionLock(lockFile);
+
+      output(buildSystemPrompt(context, plan, null, isStartTask));
+      process.exit(0);
+    }
+  }
+
+  // ── Fetch from Notion ────────────────────────────────────────────────────
   const token = loadToken();
   if (!token) {
     process.stderr.write('[notion-task-inject] NOTION_SKILLS_TOKEN not set, skipping\n');
@@ -172,8 +240,14 @@ async function main() {
   }
 
   try {
+    // Включаємо обидва статуси — задача може бути вже In progress
     const queryResult = await notionRequest(token, 'POST', `/v1/databases/${DATABASE_ID}/query`, {
-      filter: { property: 'Status', status: { equals: 'To do' } },
+      filter: {
+        or: [
+          { property: 'Status', status: { equals: 'To do' } },
+          { property: 'Status', status: { equals: 'In progress' } }
+        ]
+      },
       page_size: 1
     });
 
@@ -188,59 +262,99 @@ async function main() {
     const contentBlocks = allBlocks.filter(b => b.type !== 'toggle');
     const content = extractBlocks(contentBlocks);
 
-    let branchNote = '';
-
-    if (isStartTask) {
-      let branch = extractBranchFromBlocks(allBlocks);
-
-      // Fallback: derive from title
-      if (!branch) {
-        const numMatch = name.match(/spovishun-(\d+)/i);
-        if (numMatch) {
-          const taskNum = numMatch[1];
-          const slug = name
-            .replace(/^feature\/spovishun-\d+:\s*/i, '')
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, '')
-            .trim()
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .split('-').slice(0, 3).join('-');
-          branch = `feature/spovishun-${taskNum}-${slug}`;
-        }
-      }
-
-      if (branch) {
-        const result = gitCheckoutFromDevelop(branch);
-        branchNote = result.ok
-          ? `\n**Git:** ${result.message}`
-          : `\n**Git error:** ${result.message}`;
+    // Derive task branch
+    let taskBranch = extractBranchFromBlocks(allBlocks);
+    if (!taskBranch) {
+      const numMatch = name.match(/spovishun-(\d+)/i);
+      if (numMatch) {
+        const taskNum = numMatch[1];
+        const slug = name
+          .replace(/^feature\/spovishun-\d+:\s*/i, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .split('-').slice(0, 3).join('-');
+        taskBranch = `feature/spovishun-${taskNum}-${slug}`;
       }
     }
 
-    const systemPrompt = [
-      '## 🪝 Active Task (Notion — In progress)',
-      `**${name}**`,
-      '',
-      content,
-      branchNote,
-      '',
-      '---',
-      '*Work within the scope of this task. Do not go beyond what is described.*'
-    ].filter(l => l !== undefined).join('\n');
+    // Визначити папку кешу
+    const cacheBranch = currentBranch && currentBranch !== 'develop' && currentBranch !== 'main'
+      ? currentBranch
+      : taskBranch;
 
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'UserPromptSubmit',
-        additionalContext: systemPrompt
+    // Зберегти в кеш
+    if (cacheBranch) {
+      const ctxDir = getContextDir(cacheBranch);
+      ensureDir(ctxDir);
+      const contextMd = `## 🪝 Active Task (Notion)\n**${name}**\n\n${content}`;
+      fs.writeFileSync(path.join(ctxDir, 'context.md'), contextMd, 'utf8');
+      fs.writeFileSync(path.join(ctxDir, 'branch.txt'), cacheBranch, 'utf8');
+      writeSessionLock(path.join(ctxDir, 'session.lock'));
+    }
+
+    // Handle start-task actions
+    let branchNote = '';
+    if (isStartTask) {
+      await notionRequest(token, 'PATCH', `/v1/pages/${page.id}`, {
+        properties: { Status: { status: { name: 'In progress' } } }
+      });
+
+      if (taskBranch) {
+        if (currentBranch === taskBranch) {
+          branchNote = `\n**Git:** Already on \`${taskBranch}\` — skipping checkout`;
+        } else {
+          const result = gitCheckoutFromDevelop(taskBranch);
+          branchNote = result.ok
+            ? `\n**Git:** ${result.message}`
+            : `\n**Git error:** ${result.message}`;
+        }
       }
-    }));
+    } else if (isRefresh) {
+      branchNote = '\n> 🔄 Context refreshed from Notion.';
+    } else if (currentBranch && taskBranch && currentBranch !== taskBranch) {
+      branchNote = `\n> ⚠️ Current branch: \`${currentBranch}\`. Task branch: \`${taskBranch}\`. Use "start task" to switch and load full context.`;
+    }
+
+    // При refresh — також підтягнути plan.md якщо є
+    let plan = null;
+    if (isRefresh && cacheBranch) {
+      const planFile = path.join(getContextDir(cacheBranch), 'plan.md');
+      if (fs.existsSync(planFile)) plan = fs.readFileSync(planFile, 'utf8');
+    }
+
+    const contextText = `## 🪝 Active Task (Notion — In progress)\n**${name}**\n\n${content}`;
+    output(buildSystemPrompt(contextText, plan, branchNote, isStartTask));
     process.exit(0);
 
   } catch (err) {
     process.stderr.write(`[notion-task-inject] Error: ${err.message}\n`);
     process.exit(0);
   }
+}
+
+function buildSystemPrompt(context, plan, branchNote, isStartTask) {
+  const parts = [context];
+  if (plan) parts.push(`\n---\n## 📋 Approved Plan\n${plan}`);
+  if (branchNote) parts.push(branchNote);
+  parts.push('\n---');
+  parts.push(
+    isStartTask
+      ? '⚠️ IMPORTANT: You MUST call the EnterPlanMode tool immediately before doing anything else. Build a detailed implementation plan based on the task above. Do NOT write any code until the plan is approved.'
+      : '*Work within the scope of this task. Do not go beyond what is described.*'
+  );
+  return parts.join('\n');
+}
+
+function output(systemPrompt) {
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext: systemPrompt
+    }
+  }));
 }
 
 main();

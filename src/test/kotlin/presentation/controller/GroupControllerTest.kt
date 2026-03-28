@@ -1,18 +1,16 @@
 package presentation.controller
 
 import com.github.kotlintelegrambot.Bot
-import com.github.kotlintelegrambot.entities.ChatId
-import com.github.kotlintelegrambot.entities.ChatMember
-import com.github.kotlintelegrambot.entities.User
-import com.github.kotlintelegrambot.types.TelegramBotResult
 import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DatabaseException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.model.Group
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.GroupService
 import com.ua.astrumon.domain.service.GroupWithMembers
@@ -34,6 +32,7 @@ class GroupControllerTest {
     private val groupService: GroupService = mockk()
     private val memberService: MemberService = mockk()
     private val autoRegisterService: AutoRegisterService = mockk()
+    private val botAdminUtils: BotAdminUtils = mockk()
     private val bot: Bot = mockk()
     private lateinit var groupController: GroupController
 
@@ -41,47 +40,61 @@ class GroupControllerTest {
     private val userId = 456L
     private val username = "alice"
     private val firstName = "Alice"
-    private val member = Member(1L, chatId, userId, username, firstName, null)
+    private val adminMember = Member(1L, chatId, userId, username, firstName, null, role = MemberRole.ADMIN)
+    private val member = Member(1L, chatId, userId, username, firstName, null, role = MemberRole.MEMBER)
 
     @BeforeTest
     fun setup() {
         clearAllMocks()
-        groupController = GroupController(groupService, memberService, autoRegisterService)
-        coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any()) } returns ResultContainer.success(member)
-        setupAdmin(userId)
+        groupController = GroupController(groupService, memberService, autoRegisterService, botAdminUtils)
+        coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any(), any()) } returns ResultContainer.success(adminMember)
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(adminMember)
+        every { botAdminUtils.getMemberRole(any(), any(), any()) } returns MemberRole.ADMIN
     }
 
-    private fun setupAdmin(vararg adminUserIds: Long) {
-        val adminMembers = adminUserIds.map { adminId ->
-            ChatMember(user = User(id = adminId, isBot = false, firstName = "Admin"), status = "administrator")
-        }
-        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(adminMembers)
-    }
-
-    private fun setupNonAdmin() {
-        every { bot.getChatAdministrators(ChatId.fromId(chatId)) } returns TelegramBotResult.Success(emptyList())
-    }
-
-    // --- getGroups(chatId, member) tests ---
+    // --- getGroups tests ---
 
     @Test
-    fun `getGroups should return formatted list when groups exist`() = runTest {
+    fun `getGroups should return formatted list with badges`() = runTest {
         // Given
+        val moderatorMember = Member(2L, chatId, 789L, "bob", "Bob", null, role = MemberRole.MODERATOR)
+        val regularMember = Member(3L, chatId, 111L, "charlie", "Charlie", null, role = MemberRole.MEMBER)
         val groups = listOf(
-            GroupWithMembers(1L, chatId, "devs", "devs", listOf("alice", "bob")),
+            GroupWithMembers(1L, chatId, "devs", "devs", listOf("alice", "bob", "charlie")),
             GroupWithMembers(2L, chatId, "qa", "qa", emptyList())
         )
         coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(groups)
+        coEvery { memberService.getMemberByUsername("alice") } returns ResultContainer.success(adminMember)
+        coEvery { memberService.getMemberByUsername("bob") } returns ResultContainer.success(moderatorMember)
+        coEvery { memberService.getMemberByUsername("charlie") } returns ResultContainer.success(regularMember)
 
         // When
-        val result = groupController.getGroups(chatId, member)
+        val result = groupController.getGroups(bot, chatId, adminMember)
 
         // Then
         assertTrue(result.contains("Групи:"))
-        assertTrue(result.contains("devs"))
-        assertTrue(result.contains("@alice"))
-        assertTrue(result.contains("@bob"))
+        assertTrue(result.contains("@alice \uD83D\uDD10"))
+        assertTrue(result.contains("@bob \uD83D\uDEE1"))
+        assertTrue(result.contains("@charlie"))
+        assertTrue(!result.contains("charlie \uD83D\uDD10"))
         assertTrue(result.contains("—"))
+    }
+
+    @Test
+    fun `getGroups should handle member lookup failure gracefully`() = runTest {
+        // Given
+        val groups = listOf(GroupWithMembers(1L, chatId, "devs", "devs", listOf("unknown")))
+        coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(groups)
+        coEvery { memberService.getMemberByUsername("unknown") } returns ResultContainer.failure(
+            ResourceNotFoundException("Member", "unknown")
+        )
+
+        // When
+        val result = groupController.getGroups(bot, chatId, adminMember)
+
+        // Then
+        assertTrue(result.contains("@unknown"))
+        assertTrue(!result.contains("\uD83D\uDD10"))
     }
 
     @Test
@@ -90,7 +103,7 @@ class GroupControllerTest {
         coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(emptyList())
 
         // When
-        val result = groupController.getGroups(chatId, member)
+        val result = groupController.getGroups(bot, chatId, adminMember)
 
         // Then
         assertTrue(result.contains("Немає груп"))
@@ -103,77 +116,10 @@ class GroupControllerTest {
         coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.failure(error)
 
         // When
-        val result = groupController.getGroups(chatId, member)
+        val result = groupController.getGroups(bot, chatId, adminMember)
 
         // Then
         assertTrue(result.contains("Помилка завантаження груп"))
-    }
-
-    // --- getGroups(bot, chatId, member) tests ---
-
-    @Test
-    fun `getGroups with bot should show admin badges`() = runTest {
-        // Given
-        val groups = listOf(
-            GroupWithMembers(1L, chatId, "devs", "devs", listOf("alice"))
-        )
-        coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(groups)
-        coEvery { memberService.getMemberByUsername("alice") } returns ResultContainer.success(member)
-
-        // When
-        val result = groupController.getGroups(bot, chatId, member)
-
-        // Then
-        assertTrue(result.contains("@alice \uD83D\uDD10"))
-    }
-
-    @Test
-    fun `getGroups with bot should not show admin badge for non-admins`() = runTest {
-        // Given
-        val nonAdminMember = Member(2L, chatId, 789L, "bob", "Bob", null)
-        val groups = listOf(
-            GroupWithMembers(1L, chatId, "devs", "devs", listOf("bob"))
-        )
-        coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(groups)
-        coEvery { memberService.getMemberByUsername("bob") } returns ResultContainer.success(nonAdminMember)
-
-        // When
-        val result = groupController.getGroups(bot, chatId, member)
-
-        // Then
-        assertTrue(result.contains("@bob"))
-        assertTrue(!result.contains("bob \uD83D\uDD10"))
-    }
-
-    @Test
-    fun `getGroups with bot should handle member lookup failure gracefully`() = runTest {
-        // Given
-        val groups = listOf(
-            GroupWithMembers(1L, chatId, "devs", "devs", listOf("unknown"))
-        )
-        coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(groups)
-        coEvery { memberService.getMemberByUsername("unknown") } returns ResultContainer.failure(
-            ResourceNotFoundException("Member", "unknown")
-        )
-
-        // When
-        val result = groupController.getGroups(bot, chatId, member)
-
-        // Then
-        assertTrue(result.contains("@unknown"))
-        assertTrue(!result.contains("\uD83D\uDD10"))
-    }
-
-    @Test
-    fun `getGroups with bot should return empty message when no groups`() = runTest {
-        // Given
-        coEvery { groupService.getAllGroupsWithMembers(chatId) } returns ResultContainer.success(emptyList())
-
-        // When
-        val result = groupController.getGroups(bot, chatId, member)
-
-        // Then
-        assertTrue(result.contains("Немає груп"))
     }
 
     // --- createGroup tests ---
@@ -185,7 +131,7 @@ class GroupControllerTest {
         coEvery { groupService.createGroup(chatId, "devs") } returns ResultContainer.success(group)
 
         // When
-        val result = groupController.createGroup(bot, chatId, userId, listOf("Devs"))
+        val result = groupController.createGroup(chatId, userId, listOf("Devs"))
 
         // Then
         assertTrue(result.contains("Група"))
@@ -194,22 +140,37 @@ class GroupControllerTest {
     }
 
     @Test
-    fun `createGroup should return error when not admin`() = runTest {
+    fun `createGroup should return error when caller is regular member`() = runTest {
         // Given
-        setupNonAdmin()
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
 
         // When
-        val result = groupController.createGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.createGroup(chatId, userId, listOf("devs"))
 
         // Then
-        assertEquals("🚫 Лише адміни.", result)
+        assertTrue(result.contains("🚫"))
         coVerify(exactly = 0) { groupService.createGroup(any(), any()) }
+    }
+
+    @Test
+    fun `createGroup should allow moderator`() = runTest {
+        // Given
+        val moderatorMember = Member(1L, chatId, userId, username, firstName, null, role = MemberRole.MODERATOR)
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(moderatorMember)
+        val group = Group(1L, chatId, "devs", emptyList())
+        coEvery { groupService.createGroup(chatId, "devs") } returns ResultContainer.success(group)
+
+        // When
+        val result = groupController.createGroup(chatId, userId, listOf("devs"))
+
+        // Then
+        assertTrue(result.contains("створена"))
     }
 
     @Test
     fun `createGroup should return usage message when no args`() = runTest {
         // When
-        val result = groupController.createGroup(bot, chatId, userId, emptyList())
+        val result = groupController.createGroup(chatId, userId, emptyList())
 
         // Then
         assertTrue(result.contains("/newgroup"))
@@ -223,7 +184,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.createGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.createGroup(chatId, userId, listOf("devs"))
 
         // Then
         assertTrue(result.contains("вже існує"))
@@ -239,7 +200,7 @@ class GroupControllerTest {
         coEvery { groupService.deleteGroup(chatId, "devs") } returns ResultContainer.success(Unit)
 
         // When
-        val result = groupController.deleteGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.deleteGroup(chatId, userId, listOf("devs"))
 
         // Then
         assertTrue(result.contains("devs"))
@@ -247,21 +208,21 @@ class GroupControllerTest {
     }
 
     @Test
-    fun `deleteGroup should return error when not admin`() = runTest {
+    fun `deleteGroup should return error when caller is regular member`() = runTest {
         // Given
-        setupNonAdmin()
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
 
         // When
-        val result = groupController.deleteGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.deleteGroup(chatId, userId, listOf("devs"))
 
         // Then
-        assertEquals("🚫 Лише адміни.", result)
+        assertTrue(result.contains("🚫"))
     }
 
     @Test
     fun `deleteGroup should return usage message when no args`() = runTest {
         // When
-        val result = groupController.deleteGroup(bot, chatId, userId, emptyList())
+        val result = groupController.deleteGroup(chatId, userId, emptyList())
 
         // Then
         assertTrue(result.contains("/delgroup"))
@@ -275,7 +236,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.deleteGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.deleteGroup(chatId, userId, listOf("devs"))
 
         // Then
         assertTrue(result.contains("не знайдено"))
@@ -291,7 +252,7 @@ class GroupControllerTest {
         coEvery { groupService.addMemberToGroup(chatId, "devs", "bob") } returns ResultContainer.success(Unit)
 
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("bob"))
@@ -300,21 +261,21 @@ class GroupControllerTest {
     }
 
     @Test
-    fun `addUserToGroup should return error when not admin`() = runTest {
+    fun `addUserToGroup should return error when caller is regular member`() = runTest {
         // Given
-        setupNonAdmin()
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
 
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
-        assertEquals("🚫 Лише адміни.", result)
+        assertTrue(result.contains("🚫"))
     }
 
     @Test
     fun `addUserToGroup should return usage message when insufficient args`() = runTest {
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs"))
 
         // Then
         assertTrue(result.contains("/addtogroup"))
@@ -330,7 +291,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("Неможливо додати"))
@@ -344,7 +305,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("Групу"))
@@ -361,7 +322,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.addUserToGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("вже в групі"))
@@ -377,7 +338,7 @@ class GroupControllerTest {
         coEvery { groupService.removeMemberFromGroup(chatId, "devs", "bob") } returns ResultContainer.success(Unit)
 
         // When
-        val result = groupController.removeUserFromGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("bob"))
@@ -385,21 +346,21 @@ class GroupControllerTest {
     }
 
     @Test
-    fun `removeUserFromGroup should return error when not admin`() = runTest {
+    fun `removeUserFromGroup should return error when caller is regular member`() = runTest {
         // Given
-        setupNonAdmin()
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
 
         // When
-        val result = groupController.removeUserFromGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
-        assertEquals("🚫 Лише адміни.", result)
+        assertTrue(result.contains("🚫"))
     }
 
     @Test
     fun `removeUserFromGroup should return usage message when insufficient args`() = runTest {
         // When
-        val result = groupController.removeUserFromGroup(bot, chatId, userId, listOf("devs"))
+        val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs"))
 
         // Then
         assertTrue(result.contains("/removefromgroup"))
@@ -413,7 +374,7 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.removeUserFromGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("не знайдено"))
@@ -429,9 +390,77 @@ class GroupControllerTest {
         )
 
         // When
-        val result = groupController.removeUserFromGroup(bot, chatId, userId, listOf("devs", "@bob"))
+        val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs", "@bob"))
 
         // Then
         assertTrue(result.contains("не знайдено в групі"))
+    }
+
+    // --- grantRole tests ---
+
+    @Test
+    fun `grantRole should return success when admin grants moderator role`() = runTest {
+        // Given
+        val targetMember = Member(2L, chatId, 789L, "bob", "Bob", null, role = MemberRole.MEMBER)
+        coEvery { memberService.getMemberByUsername("bob") } returns ResultContainer.success(targetMember)
+        coEvery { memberService.setMemberRole(chatId, 789L, MemberRole.MODERATOR) } returns ResultContainer.success(
+            targetMember.copy(role = MemberRole.MODERATOR)
+        )
+
+        // When
+        val result = groupController.grantRole(chatId, userId, listOf("@bob", "moderator"))
+
+        // Then
+        assertTrue(result.contains("bob"))
+        assertTrue(result.contains("moderator"))
+    }
+
+    @Test
+    fun `grantRole should return error when caller is not admin`() = runTest {
+        // Given
+        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(
+            Member(1L, chatId, userId, username, firstName, null, role = MemberRole.MODERATOR)
+        )
+
+        // When
+        val result = groupController.grantRole(chatId, userId, listOf("@bob", "moderator"))
+
+        // Then
+        assertTrue(result.contains("🚫"))
+        coVerify(exactly = 0) { memberService.setMemberRole(any(), any(), any()) }
+    }
+
+    @Test
+    fun `grantRole should return error when target user not found`() = runTest {
+        // Given
+        coEvery { memberService.getMemberByUsername("bob") } returns ResultContainer.failure(
+            ResourceNotFoundException("Member", "bob")
+        )
+
+        // When
+        val result = groupController.grantRole(chatId, userId, listOf("@bob", "moderator"))
+
+        // Then
+        assertTrue(result.contains("не знайдено"))
+        coVerify(exactly = 0) { memberService.setMemberRole(any(), any(), any()) }
+    }
+
+    @Test
+    fun `grantRole should return error for invalid role name`() = runTest {
+        // When
+        val result = groupController.grantRole(chatId, userId, listOf("@bob", "superadmin"))
+
+        // Then
+        assertTrue(result.contains("Невідома роль"))
+        coVerify(exactly = 0) { memberService.setMemberRole(any(), any(), any()) }
+    }
+
+    @Test
+    fun `grantRole should return usage message when insufficient args`() = runTest {
+        // When
+        val result = groupController.grantRole(chatId, userId, listOf("@bob"))
+
+        // Then
+        assertTrue(result.contains("/grantrole"))
     }
 }

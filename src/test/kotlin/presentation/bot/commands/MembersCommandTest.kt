@@ -77,7 +77,7 @@ class MembersCommandTest {
         membersCommand(bot, update)
 
         // Then
-        coVerify { membersController.getMembers(bot, chatId, match { it.username == "user_$userId" }) }
+        coVerify { membersController.getMembers(bot,chatId, match { it.username == "user_$userId" }) }
     }
 
     @Test
@@ -89,7 +89,7 @@ class MembersCommandTest {
         membersCommand(bot, update)
 
         // Then
-        coVerify(exactly = 0) { membersController.getMembers(any<Bot>(), any(), any()) }
+        coVerify(exactly = 0) { membersController.getMembers(any(), any(), any()) }
         coVerify(exactly = 0) { bot.sendMessage(any(), any(), any()) }
     }
 
@@ -102,6 +102,6 @@ class MembersCommandTest {
         membersCommand(bot, update)
 
         // Then
-        coVerify(exactly = 0) { membersController.getMembers(any<Bot>(), any(), any()) }
+        coVerify(exactly = 0) { membersController.getMembers(any(), any(), any()) }
     }
 }

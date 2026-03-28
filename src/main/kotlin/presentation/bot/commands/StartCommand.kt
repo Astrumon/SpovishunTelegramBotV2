@@ -6,9 +6,10 @@ import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.common.util.VersionInfo
+import com.ua.astrumon.domain.BotAdminUtils
 import org.slf4j.LoggerFactory
 
-class StartCommand(private val autoRegisterService: AutoRegisterService) {
+class StartCommand(private val autoRegisterService: AutoRegisterService, private val botAdminUtils: BotAdminUtils) {
     private val logger = LoggerFactory.getLogger(StartCommand::class.java)
 
     suspend operator fun invoke(bot: Bot, update: Update) {
@@ -82,6 +83,7 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
 
             if (triggerUser != null) {
                 addMemberToDatabase(
+                    bot,
                     chatId = chatId,
                     userId = triggerUser.id,
                     username = triggerUser.username,
@@ -107,6 +109,7 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
                         admin.user.id, admin.user.username
                     )
                     addMemberToDatabase(
+                        bot,
                         userId = admin.user.id,
                         chatId = chatId,
                         username = admin.user.username,
@@ -144,17 +147,19 @@ class StartCommand(private val autoRegisterService: AutoRegisterService) {
         }
     }
 
-    private suspend fun addMemberToDatabase(chatId: Long, userId: Long, username: String?, firstName: String) {
+    private suspend fun addMemberToDatabase(bot: Bot, chatId: Long, userId: Long, username: String?, firstName: String) {
         val sanitizedUsername = sanitizeUsername(username, userId)
         logger.debug(
             "Attempting to register member: userId: {}, username: {}, firstName: {}",
             userId, sanitizedUsername, firstName
         )
+        val userRole = botAdminUtils.getMemberRole(bot, chatId, userId)
         val result = autoRegisterService.ensureUserRegistered(
             userId = userId,
             chatId = chatId,
             username = sanitizedUsername,
-            firstName = firstName
+            firstName = firstName,
+            userRole = userRole
         )
 
         if (result.isFailure) {

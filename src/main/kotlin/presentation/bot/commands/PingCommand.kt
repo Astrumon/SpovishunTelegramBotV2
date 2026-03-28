@@ -4,6 +4,7 @@ import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.entities.ChatId
 import com.github.kotlintelegrambot.entities.ParseMode
 import com.github.kotlintelegrambot.entities.Update
+import com.ua.astrumon.domain.BotAdminUtils
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.GroupService
 import com.ua.astrumon.domain.service.MemberService
@@ -12,7 +13,8 @@ import org.slf4j.LoggerFactory
 class PingCommand(
     private val memberService: MemberService,
     private val groupService: GroupService,
-    private val autoRegisterService: AutoRegisterService
+    private val autoRegisterService: AutoRegisterService,
+    private val botAdminUtils: BotAdminUtils,
 ) {
     private val logger = LoggerFactory.getLogger(PingCommand::class.java)
 
@@ -24,7 +26,7 @@ class PingCommand(
         logger.info("PingAll command invoked - chatId: {}, userId: {}, args: {}", 
             chatId, user?.id, args)
 
-        ensureUserRegistered(update)
+        ensureUserRegistered(bot, update)
         
         logger.debug("Fetching all members for pingAll in chatId: {}", chatId)
 
@@ -68,7 +70,7 @@ class PingCommand(
         logger.info("PingGroup command invoked - chatId: {}, userId: {}, args: {}", 
             chatId, user?.id, args)
 
-        ensureUserRegistered(update)
+        ensureUserRegistered(bot, update)
 
         if (args.isEmpty()) {
             logger.warn("PingGroup called without group key in chatId: {}", chatId)
@@ -158,9 +160,10 @@ class PingCommand(
         )
     }
 
-    private suspend fun ensureUserRegistered(update: Update) {
+    private suspend fun ensureUserRegistered(bot: Bot, update: Update) {
         val user = update.message?.from ?: return
         val chatId = update.message?.chat?.id ?: return
+        val userRole = botAdminUtils.getMemberRole(bot, chatId, user.id)
         
         logger.debug("Ensuring user is registered - userId: {}, username: {}", 
             user.id, user.username)
@@ -169,7 +172,8 @@ class PingCommand(
             userId = user.id,
             chatId = chatId,
             username = user.username ?: "user_${user.id}",
-            firstName = user.firstName
+            firstName = user.firstName,
+            userRole = userRole
         )
     }
 }

@@ -4,6 +4,7 @@ import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.repository.MemberRepository
 import kotlinx.datetime.Clock
 
@@ -11,7 +12,13 @@ class MemberService(
     private val memberRepository: MemberRepository
 ) {
 
-    suspend fun createMember(chatId: Long, userId: Long, username: String, firstName: String): ResultContainer<Member> {
+    suspend fun createMember(
+        chatId: Long,
+        userId: Long,
+        username: String,
+        firstName: String,
+        role: MemberRole = MemberRole.MEMBER
+    ): ResultContainer<Member> {
         return checkUsernameExists(username)
             .flatMap {
                 memberRepository.save(
@@ -19,6 +26,7 @@ class MemberService(
                     userId = userId,
                     username = username,
                     firstName = firstName,
+                    role = role,
                     joinedAt = Clock.System.now()
                 )
             }
@@ -53,6 +61,22 @@ class MemberService(
                         }
                 }
             }
+    }
+
+    suspend fun getMemberByChatAndUserId(chatId: Long, userId: Long): ResultContainer<Member> {
+        return memberRepository.findByChatIdAndUserId(chatId, userId)
+            .flatMap { member ->
+                if (member != null) {
+                    ResultContainer.success(member)
+                } else {
+                    ResultContainer.failure(ResourceNotFoundException("Member", userId.toString()))
+                }
+            }
+    }
+
+    suspend fun setMemberRole(chatId: Long, userId: Long, role: MemberRole): ResultContainer<Member> {
+        return getMemberByChatAndUserId(chatId, userId)
+            .flatMap { memberRepository.updateRole(chatId, userId, role) }
     }
 
     suspend fun getAllMembers(): ResultContainer<List<Member>> {

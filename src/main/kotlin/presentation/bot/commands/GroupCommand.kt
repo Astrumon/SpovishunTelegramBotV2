@@ -57,7 +57,6 @@ class GroupCommand(
         )
 
         val response = groupController.createGroup(
-            bot = bot,
             chatId = chatId,
             userId = user.id,
             args = args,
@@ -82,7 +81,6 @@ class GroupCommand(
         )
 
         val response = groupController.deleteGroup(
-            bot = bot,
             chatId = chatId,
             userId = user.id,
             args = args,
@@ -110,7 +108,6 @@ class GroupCommand(
         )
 
         val response = groupController.addUserToGroup(
-            bot = bot,
             chatId,
             userId = user.id,
             args = args,
@@ -138,7 +135,6 @@ class GroupCommand(
         )
 
         val response = groupController.removeUserFromGroup(
-            bot = bot,
             chatId = chatId,
             userId = user.id,
             args = args,

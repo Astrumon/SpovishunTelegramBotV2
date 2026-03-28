@@ -9,6 +9,7 @@ object Members : LongIdTable("members") {
     val username = varchar("username", 64)
     val firstname = varchar("firstname", 128)
     val joinedAt = timestamp("joined_at").nullable()
+    val role = varchar("role", 16).default("MEMBER")
 
     init {
         uniqueIndex(chatId, userId)    // один юзер — один раз у чаті

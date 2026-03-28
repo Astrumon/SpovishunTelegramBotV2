@@ -5,7 +5,7 @@ import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.model.badge
@@ -58,7 +58,7 @@ class GroupController(
     }
 
     suspend fun createGroup(chatId: Long, userId: Long, args: List<String>): String {
-        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
+        if (!memberService.hasModeratorAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
             return "Не правильно використовуєш команду, спробуй: /newgroup &lt;назва&gt;"
@@ -80,7 +80,7 @@ class GroupController(
     }
 
     suspend fun deleteGroup(chatId: Long, userId: Long, args: List<String>): String {
-        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
+        if (!memberService.hasModeratorAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
             return "Використання: /delgroup &lt;назва&gt;"
@@ -104,7 +104,7 @@ class GroupController(
     }
 
     suspend fun addUserToGroup(chatId: Long, userId: Long, args: List<String>): String {
-        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
+        if (!memberService.hasModeratorAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {
             return "Використання: /addtogroup &lt;назва&gt; @username"
@@ -139,7 +139,7 @@ class GroupController(
     }
 
     suspend fun removeUserFromGroup(chatId: Long, userId: Long, args: List<String>): String {
-        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
+        if (!memberService.hasModeratorAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {
             return "Використання: /removefromgroup &lt;назва&gt; @username"
@@ -165,7 +165,7 @@ class GroupController(
     }
 
     suspend fun grantRole(chatId: Long, userId: Long, args: List<String>): String {
-        if (!hasAdminAccess(chatId, userId)) return "🚫 Лише адміни можуть призначати ролі."
+        if (!memberService.hasAdminAccess(chatId, userId)) return "🚫 Лише адміни можуть призначати ролі."
 
         if (args.size < 2) return "Використання: /grantrole @username moderator|admin|member"
 
@@ -188,13 +188,4 @@ class GroupController(
             )
     }
 
-    private suspend fun hasModerationAccess(chatId: Long, userId: Long): Boolean {
-        return memberService.getMemberByChatAndUserId(chatId, userId)
-            .fold(onSuccess = { it.role >= MemberRole.MODERATOR }, onFailure = { false })
-    }
-
-    private suspend fun hasAdminAccess(chatId: Long, userId: Long): Boolean {
-        return memberService.getMemberByChatAndUserId(chatId, userId)
-            .fold(onSuccess = { it.role == MemberRole.ADMIN }, onFailure = { false })
-    }
 }

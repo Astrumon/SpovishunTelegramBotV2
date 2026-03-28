@@ -83,6 +83,16 @@ class MemberService(
         return memberRepository.findAll()
     }
 
+    suspend fun hasModeratorAccess(chatId: Long, userId: Long): Boolean {
+        return getMemberByChatAndUserId(chatId, userId)
+            .fold(onSuccess = { it.role >= MemberRole.MODERATOR }, onFailure = { false })
+    }
+
+    suspend fun hasAdminAccess(chatId: Long, userId: Long): Boolean {
+        return getMemberByChatAndUserId(chatId, userId)
+            .fold(onSuccess = { it.role == MemberRole.ADMIN }, onFailure = { false })
+    }
+
     private suspend fun checkUsernameExists(username: String): ResultContainer<String> {
         return memberRepository.findByUsername(username)
             .flatMap { member ->

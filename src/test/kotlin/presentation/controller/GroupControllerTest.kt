@@ -7,7 +7,7 @@ import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.common.result.ResultContainer
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.domain.model.Group
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.MemberRole
@@ -48,7 +48,8 @@ class GroupControllerTest {
         clearAllMocks()
         groupController = GroupController(groupService, memberService, autoRegisterService, botAdminUtils)
         coEvery { autoRegisterService.ensureUserRegistered(any(), any(), any(), any(), any()) } returns ResultContainer.success(adminMember)
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(adminMember)
+        coEvery { memberService.hasModeratorAccess(chatId, userId) } returns true
+        coEvery { memberService.hasAdminAccess(chatId, userId) } returns true
         every { botAdminUtils.getMemberRole(any(), any(), any()) } returns MemberRole.ADMIN
     }
 
@@ -142,7 +143,7 @@ class GroupControllerTest {
     @Test
     fun `createGroup should return error when caller is regular member`() = runTest {
         // Given
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberService.hasModeratorAccess(chatId, userId) } returns false
 
         // When
         val result = groupController.createGroup(chatId, userId, listOf("devs"))
@@ -155,8 +156,6 @@ class GroupControllerTest {
     @Test
     fun `createGroup should allow moderator`() = runTest {
         // Given
-        val moderatorMember = Member(1L, chatId, userId, username, firstName, null, role = MemberRole.MODERATOR)
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(moderatorMember)
         val group = Group(1L, chatId, "devs", emptyList())
         coEvery { groupService.createGroup(chatId, "devs") } returns ResultContainer.success(group)
 
@@ -210,7 +209,7 @@ class GroupControllerTest {
     @Test
     fun `deleteGroup should return error when caller is regular member`() = runTest {
         // Given
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberService.hasModeratorAccess(chatId, userId) } returns false
 
         // When
         val result = groupController.deleteGroup(chatId, userId, listOf("devs"))
@@ -263,7 +262,7 @@ class GroupControllerTest {
     @Test
     fun `addUserToGroup should return error when caller is regular member`() = runTest {
         // Given
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberService.hasModeratorAccess(chatId, userId) } returns false
 
         // When
         val result = groupController.addUserToGroup(chatId, userId, listOf("devs", "@bob"))
@@ -348,7 +347,7 @@ class GroupControllerTest {
     @Test
     fun `removeUserFromGroup should return error when caller is regular member`() = runTest {
         // Given
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberService.hasModeratorAccess(chatId, userId) } returns false
 
         // When
         val result = groupController.removeUserFromGroup(chatId, userId, listOf("devs", "@bob"))
@@ -418,9 +417,7 @@ class GroupControllerTest {
     @Test
     fun `grantRole should return error when caller is not admin`() = runTest {
         // Given
-        coEvery { memberService.getMemberByChatAndUserId(chatId, userId) } returns ResultContainer.success(
-            Member(1L, chatId, userId, username, firstName, null, role = MemberRole.MODERATOR)
-        )
+        coEvery { memberService.hasAdminAccess(chatId, userId) } returns false
 
         // When
         val result = groupController.grantRole(chatId, userId, listOf("@bob", "moderator"))

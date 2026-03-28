@@ -10,7 +10,7 @@ import com.github.kotlintelegrambot.entities.Update
 import com.github.kotlintelegrambot.entities.User
 import com.github.kotlintelegrambot.types.TelegramBotResult
 import com.ua.astrumon.common.result.ResultContainer
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.domain.model.Member
 import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.service.AutoRegisterService

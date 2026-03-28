@@ -1,7 +1,7 @@
 package com.ua.astrumon.di
 
 import com.ua.astrumon.config.AppConfig
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.presentation.bot.TelegramBot
 import com.ua.astrumon.presentation.bot.commands.GrantRoleCommand
 import com.ua.astrumon.presentation.bot.commands.GroupCommand

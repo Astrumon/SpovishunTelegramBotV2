@@ -2,7 +2,7 @@ package com.ua.astrumon.presentation.bot.handler
 
 import com.github.kotlintelegrambot.Bot
 import com.github.kotlintelegrambot.entities.Update
-import com.ua.astrumon.domain.BotAdminUtils
+import com.ua.astrumon.presentation.util.BotAdminUtils
 import com.ua.astrumon.domain.service.AutoRegisterService
 import org.slf4j.LoggerFactory
 

@@ -96,6 +96,24 @@ To add a migration:
 
 Never edit a migration file after it has been applied to any database.
 
+## Source Sets & Key Files
+
+| Source set | Path | Gradle task |
+|---|---|---|
+| `main` | `src/main/kotlin/` | — |
+| `test` (unit) | `src/test/kotlin/` | `./gradlew test` |
+| `integrationTest` | `src/integrationTest/kotlin/` | `./gradlew integrationTest` |
+| `e2eTest` | `src/e2eTest/kotlin/` | `./gradlew e2eTest` |
+
+Key files:
+- `src/main/kotlin/Application.kt` — `Application.run()` starts Koin + polling; `Application.initializeKoin()` can be called in isolation for in-process test setup
+- `src/main/kotlin/presentation/bot/handler/MessageHandler.kt` — routes updates to commands via `when`
+- `src/main/kotlin/di/DevRepositoryModule.kt` / `ProdRepositoryModule.kt` — profile-based repo wiring
+
+Implemented commands (6): `StartCommand`, `RegisterCommand`, `PingCommand`, `GroupCommand`, `GrantRoleCommand`, `MembersCommand`
+
+MockImpl repos (4): `MemberRepositoryMockImpl`, `ChatRepositoryMockImpl`, `GroupRepositoryMockImpl`, `GroupMemberRepositoryMockImpl`
+
 ## Testing
 
 - JUnit 5 + MockK + `kotlinx-coroutines-test`
@@ -112,6 +130,10 @@ Never edit a migration file after it has been applied to any database.
 | `presentation/controller/` | `*Controller` | `mockk<*Service>()` |
 
 Do NOT unit test: Koin modules, `TelegramBot`, `MessageHandler`, `DatabaseFactory`.
+
+**Integration test pattern** (`BaseIntegrationTest`): real MockImpl repos → real services → real commands/controllers → only `Bot` and `BotAdminUtils` are `mockk()`. Never use Koin in integration tests — wire manually.
+
+**e2e test env vars**: `TEST_BOT_TOKEN`, `TEST_HELPER_BOT_TOKEN`, `TEST_CHAT_ID`, `TEST_ADMINS`. Tests skip gracefully if unset.
 
 ## Gradle — Version Catalog
 

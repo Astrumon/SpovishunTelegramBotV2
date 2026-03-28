@@ -92,3 +92,27 @@ tasks.register<Test>("integrationTest") {
     useJUnitPlatform()
     shouldRunAfter(tasks.test)
 }
+
+val e2eTestSourceSet = sourceSets.create("e2eTest") {
+    kotlin.srcDir("src/e2eTest/kotlin")
+    resources.srcDir("src/e2eTest/resources")
+    compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+}
+
+configurations["e2eTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["e2eTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+tasks.register<Test>("e2eTest") {
+    description = "Runs end-to-end tests against real Telegram API"
+    group = "verification"
+    testClassesDirs = e2eTestSourceSet.output.classesDirs
+    classpath = e2eTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    maxParallelForks = 1
+    shouldRunAfter(tasks.named("integrationTest"))
+    environment("TEST_BOT_TOKEN", System.getenv("TEST_BOT_TOKEN") ?: "")
+    environment("TEST_HELPER_BOT_TOKEN", System.getenv("TEST_HELPER_BOT_TOKEN") ?: "")
+    environment("TEST_CHAT_ID", System.getenv("TEST_CHAT_ID") ?: "")
+    environment("TEST_ADMINS", System.getenv("TEST_ADMINS") ?: "")
+}

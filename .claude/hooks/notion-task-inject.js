@@ -33,7 +33,7 @@ const TRIGGER_WORDS = [
   'реалізуй', 'розроби', 'задача', 'таск', 'фіча'
 ];
 
-const START_TASK_TRIGGERS = ['start new task', 'почати нову задачу', 'беру нову задачує'];
+const START_TASK_TRIGGERS = ['start new task', 'почати нову задачу', 'беру нову задачу'];
 
 const REFRESH_TRIGGERS = ['reread task', 'update task context', 'оновити контекст задачі', 'перечитати задачу'];
 
@@ -211,8 +211,8 @@ async function main() {
 
   const currentBranch = getCurrentBranch();
 
-  // ── Try to serve from cache (якщо не refresh) ────────────────────────────
-  if (!isRefresh && currentBranch && currentBranch !== 'develop' && currentBranch !== 'main') {
+  // ── Try to serve from cache (якщо не refresh і не start-task) ──────────────
+  if (!isRefresh && !isStartTask && currentBranch && currentBranch !== 'develop' && currentBranch !== 'main') {
     const ctxDir = getContextDir(currentBranch);
     const contextFile = path.join(ctxDir, 'context.md');
     const lockFile = path.join(ctxDir, 'session.lock');
@@ -280,10 +280,30 @@ async function main() {
       }
     }
 
+    // При start-task: якщо вже на правильній гілці — читати кеш
+    if (isStartTask && taskBranch && currentBranch === taskBranch) {
+      const ctxDir = getContextDir(taskBranch);
+      const contextFile = path.join(ctxDir, 'context.md');
+      const planFile = path.join(ctxDir, 'plan.md');
+      if (fs.existsSync(contextFile)) {
+        await notionRequest(token, 'PATCH', `/v1/pages/${page.id}`, {
+          properties: { Status: { status: { name: 'In progress' } } }
+        });
+        const cachedContext = fs.readFileSync(contextFile, 'utf8');
+        const plan = fs.existsSync(planFile) ? fs.readFileSync(planFile, 'utf8') : null;
+        writeSessionLock(path.join(ctxDir, 'session.lock'));
+        const branchNote = `\n**Git:** Already on \`${taskBranch}\` — skipping checkout`;
+        output(buildSystemPrompt(cachedContext, plan, branchNote, isStartTask));
+        process.exit(0);
+      }
+    }
+
     // Визначити папку кешу
-    const cacheBranch = currentBranch && currentBranch !== 'develop' && currentBranch !== 'main'
-      ? currentBranch
-      : taskBranch;
+    const cacheBranch = isStartTask && taskBranch
+      ? taskBranch
+      : (currentBranch && currentBranch !== 'develop' && currentBranch !== 'main'
+          ? currentBranch
+          : taskBranch);
 
     // Зберегти в кеш
     if (cacheBranch) {

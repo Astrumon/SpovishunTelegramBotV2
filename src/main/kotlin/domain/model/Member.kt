@@ -9,5 +9,6 @@ data class Member(
     val userId: Long,
     val username: String,
     val firstName: String,
-    val joinedAt: Instant?
+    val joinedAt: Instant?,
+    val role: MemberRole = MemberRole.MEMBER
 )

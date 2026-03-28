@@ -33,7 +33,7 @@ class GroupCommand(
             joinedAt = null,
         )
 
-        val response = groupController.getGroups(bot, chatId, member)
+        val response = groupController.getGroups(chatId, member)
 
         logger.debug("Groups response generated for userId: {} in chatId: {}", user.id, chatId)
 

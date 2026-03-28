@@ -54,14 +54,14 @@ class MembersCommandTest {
     fun `invoke should call controller and send message`() = runTest {
         // Given
         val update = createUpdate()
-        coEvery { membersController.getMembers(bot, chatId, any()) } returns "members list"
+        coEvery { membersController.getMembers(chatId, any()) } returns "members list"
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         membersCommand(bot, update)
 
         // Then
-        coVerify { membersController.getMembers(bot, chatId, any()) }
+        coVerify { membersController.getMembers(chatId, any()) }
         coVerify { bot.sendMessage(ChatId.fromId(chatId), "members list", ParseMode.HTML) }
     }
 
@@ -70,14 +70,14 @@ class MembersCommandTest {
         // Given
         val user = User(id = userId, isBot = false, firstName = "Alice", username = null)
         val update = createUpdate(fromUser = user)
-        coEvery { membersController.getMembers(bot, chatId, match { it.username == "user_$userId" }) } returns "ok"
+        coEvery { membersController.getMembers(chatId, match { it.username == "user_$userId" }) } returns "ok"
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         membersCommand(bot, update)
 
         // Then
-        coVerify { membersController.getMembers(bot, chatId, match { it.username == "user_$userId" }) }
+        coVerify { membersController.getMembers(chatId, match { it.username == "user_$userId" }) }
     }
 
     @Test
@@ -89,7 +89,7 @@ class MembersCommandTest {
         membersCommand(bot, update)
 
         // Then
-        coVerify(exactly = 0) { membersController.getMembers(any<Bot>(), any(), any()) }
+        coVerify(exactly = 0) { membersController.getMembers(any(), any()) }
         coVerify(exactly = 0) { bot.sendMessage(any(), any(), any()) }
     }
 
@@ -102,6 +102,6 @@ class MembersCommandTest {
         membersCommand(bot, update)
 
         // Then
-        coVerify(exactly = 0) { membersController.getMembers(any<Bot>(), any(), any()) }
+        coVerify(exactly = 0) { membersController.getMembers(any(), any()) }
     }
 }

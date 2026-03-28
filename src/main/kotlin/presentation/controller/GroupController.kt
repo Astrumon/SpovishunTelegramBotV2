@@ -1,12 +1,13 @@
 package com.ua.astrumon.presentation.controller
 
 import com.github.kotlintelegrambot.Bot
-import com.github.kotlintelegrambot.entities.ChatId
 import com.ua.astrumon.common.exception.BusinessException
 import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.exception.ValidationException
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
+import com.ua.astrumon.domain.model.badge
 import com.ua.astrumon.domain.service.AutoRegisterService
 import com.ua.astrumon.domain.service.GroupService
 import com.ua.astrumon.domain.service.MemberService
@@ -27,39 +28,7 @@ class GroupController(
             firstName = member.firstName
         )
 
-        val result = groupService.getAllGroupsWithMembers(chatId).fold(
-            onSuccess = { groups ->
-                if (groups.isEmpty()) {
-                    "<b>Немає груп</b>. Створи: /newgroup &lt;назва&gt;"
-                } else {
-                    val lines = mutableListOf("📋 <b>Групи:</b>")
-                    groups.forEach { group ->
-                        val names = if (group.members.isNotEmpty()) {
-                            group.members.map { "@$it" }
-                        } else {
-                            listOf("—")
-                        }
-                        lines.add("• <b>${group.name}</b> (/ping ${group.key}): ${names.joinToString(", ")}")
-                    }
-                    lines.joinToString("\n")
-                }
-            },
-            onFailure = {
-                "❌ Помилка завантаження груп: ${it.userMessage}"
-            }
-        )
-        return result
-    }
-
-    suspend fun getGroups(bot: Bot, chatId: Long, member: Member): String {
-        autoRegisterService.ensureUserRegistered(
-            chatId = chatId,
-            userId = member.userId,
-            username = member.username,
-            firstName = member.firstName
-        )
-
-        val result = groupService.getAllGroupsWithMembers(chatId).fold(
+        return groupService.getAllGroupsWithMembers(chatId).fold(
             onSuccess = { groups ->
                 if (groups.isEmpty()) {
                     "<b>Немає груп</b>. Створи: /newgroup &lt;назва&gt;"
@@ -68,14 +37,9 @@ class GroupController(
                     groups.forEach { group ->
                         val names = if (group.members.isNotEmpty()) {
                             group.members.map { username ->
-                                val memberRecord = memberService.getMemberByUsername(username)
-                                val isAdmin = memberRecord.fold(
-                                    onSuccess = { member -> 
-                                        isAdmin(bot, chatId, member.userId)
-                                    },
-                                    onFailure = { false }
-                                )
-                                "@$username${if (isAdmin) " 🔐" else ""}"
+                                val badge = memberService.getMemberByUsername(username)
+                                    .fold(onSuccess = { it.role.badge() }, onFailure = { "" })
+                                "@$username$badge"
                             }
                         } else {
                             listOf("—")
@@ -85,15 +49,12 @@ class GroupController(
                     lines.joinToString("\n")
                 }
             },
-            onFailure = {
-                "❌ Помилка завантаження груп: ${it.userMessage}"
-            }
+            onFailure = { "❌ Помилка завантаження груп: ${it.userMessage}" }
         )
-        return result
     }
 
     suspend fun createGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
-        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
+        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
             return "Не правильно використовуєш команду, спробуй: /newgroup &lt;назва&gt;"
@@ -115,7 +76,7 @@ class GroupController(
     }
 
     suspend fun deleteGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
-        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
+        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.isEmpty()) {
             return "Використання: /delgroup &lt;назва&gt;"
@@ -139,7 +100,7 @@ class GroupController(
     }
 
     suspend fun addUserToGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
-        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
+        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {
             return "Використання: /addtogroup &lt;назва&gt; @username"
@@ -159,8 +120,7 @@ class GroupController(
                 when (exception) {
                     is ValidationException -> "❌ Неможливо додати користувача @$username. Перевірте чи існує такий користувач"
                     is ResourceNotFoundException -> {
-                        // Check if it's group or member not found by examining the exception message
-                        if (exception.message?.contains("Group") == true) {
+                        if (exception.resource == "Group") {
                             "❌ Групу $key не знайдено."
                         } else {
                             "❌ Користувача @$username не знайдено."
@@ -175,7 +135,7 @@ class GroupController(
     }
 
     suspend fun removeUserFromGroup(bot: Bot, chatId: Long, userId: Long, args: List<String>): String {
-        if (!isAdmin(bot, chatId, userId)) return "🚫 Лише адміни."
+        if (!hasModerationAccess(chatId, userId)) return "🚫 Лише адміни та модератори."
 
         if (args.size < 2) {
             return "Використання: /removefromgroup &lt;назва&gt; @username"
@@ -200,8 +160,37 @@ class GroupController(
         )
     }
 
-    private fun isAdmin(bot: Bot, chatId: Long, userId: Long): Boolean {
-        val admins = bot.getChatAdministrators(ChatId.fromId(chatId))
-        return admins.getOrNull()?.any { it.user.id == userId } == true
+    suspend fun grantRole(chatId: Long, userId: Long, args: List<String>): String {
+        if (!hasAdminAccess(chatId, userId)) return "🚫 Лише адміни можуть призначати ролі."
+
+        if (args.size < 2) return "Використання: /grantrole @username moderator|admin|member"
+
+        val targetUsername = args[0].removePrefix("@")
+        val roleArg = args[1].uppercase()
+
+        val role = runCatching { MemberRole.valueOf(roleArg) }.getOrNull()
+            ?: return "❌ Невідома роль: ${args[1]}. Доступні: moderator, admin, member"
+
+        return memberService.getMemberByUsername(targetUsername)
+            .flatMap { targetMember -> memberService.setMemberRole(chatId, targetMember.userId, role) }
+            .fold(
+                onSuccess = { "✅ @$targetUsername отримав роль ${role.name.lowercase()}." },
+                onFailure = { exception ->
+                    when (exception) {
+                        is ResourceNotFoundException -> "❌ Користувача @$targetUsername не знайдено."
+                        else -> "❌ Помилка: ${exception.userMessage}"
+                    }
+                }
+            )
+    }
+
+    private suspend fun hasModerationAccess(chatId: Long, userId: Long): Boolean {
+        return memberService.getMemberByChatAndUserId(chatId, userId)
+            .fold(onSuccess = { it.role >= MemberRole.MODERATOR }, onFailure = { false })
+    }
+
+    private suspend fun hasAdminAccess(chatId: Long, userId: Long): Boolean {
+        return memberService.getMemberByChatAndUserId(chatId, userId)
+            .fold(onSuccess = { it.role == MemberRole.ADMIN }, onFailure = { false })
     }
 }

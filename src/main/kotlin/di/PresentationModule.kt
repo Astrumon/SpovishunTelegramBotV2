@@ -2,6 +2,7 @@ package com.ua.astrumon.di
 
 import com.ua.astrumon.config.AppConfig
 import com.ua.astrumon.presentation.bot.TelegramBot
+import com.ua.astrumon.presentation.bot.commands.GrantRoleCommand
 import com.ua.astrumon.presentation.bot.commands.GroupCommand
 import com.ua.astrumon.presentation.bot.commands.MembersCommand
 import com.ua.astrumon.presentation.bot.commands.PingCommand
@@ -18,13 +19,14 @@ val presentationModule = module {
     single { MembersController(get(), get()) }
 
     // Bot components
-    single { TelegramBot(get(), get(), get(), get(), get(), get()) }
+    single { TelegramBot(get(), get(), get(), get(), get(), get(), get()) }
     single { MessageHandler(get()) }
 
     // Commands
     single { StartCommand(get()) }
     single { RegisterCommand(get()) }
     single { GroupCommand(get()) }
+    single { GrantRoleCommand(get()) }
     single { PingCommand(get(), get(), get()) }
     single { MembersCommand(get()) }
 }

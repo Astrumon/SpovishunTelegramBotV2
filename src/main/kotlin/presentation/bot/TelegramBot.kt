@@ -5,6 +5,7 @@ import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
 import com.github.kotlintelegrambot.dispatcher.message
 import com.github.kotlintelegrambot.extensions.filters.Filter
+import com.ua.astrumon.presentation.bot.commands.GrantRoleCommand
 import com.ua.astrumon.presentation.bot.commands.GroupCommand
 import com.ua.astrumon.presentation.bot.commands.MembersCommand
 import com.ua.astrumon.presentation.bot.commands.PingCommand
@@ -19,6 +20,7 @@ class TelegramBot(
     private val registerCommand: RegisterCommand,
     private val pingCommand: PingCommand,
     private val groupCommand: GroupCommand,
+    private val grantRoleCommand: GrantRoleCommand,
     private val membersCommand: MembersCommand,
     private val messageHandler: MessageHandler
 ) {
@@ -67,7 +69,11 @@ class TelegramBot(
             command("removefromgroup") {
                 groupCommand.removeUserFromGroup(bot, update)
             }
-            
+
+            command("grantrole") {
+                grantRoleCommand(bot, update)
+            }
+
             message(Filter.Text) {
                 messageHandler.handleIncomingMessage(bot, update)
             }

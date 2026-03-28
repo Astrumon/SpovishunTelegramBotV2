@@ -51,14 +51,14 @@ class GroupCommandTest {
     fun `showGroups should call controller and send message`() = runTest {
         // Given
         val update = createUpdate()
-        coEvery { groupController.getGroups(bot, chatId, any()) } returns "groups list"
+        coEvery { groupController.getGroups(chatId, any()) } returns "groups list"
         every { bot.sendMessage(any(), any(), any()) } returns mockk<TelegramBotResult<Message>>()
 
         // When
         groupCommand.showGroups(bot, update)
 
         // Then
-        coVerify { groupController.getGroups(bot, chatId, any()) }
+        coVerify { groupController.getGroups(chatId, any()) }
         coVerify { bot.sendMessage(ChatId.fromId(chatId), "groups list", ParseMode.HTML) }
     }
 
@@ -71,7 +71,7 @@ class GroupCommandTest {
         groupCommand.showGroups(bot, update)
 
         // Then
-        coVerify(exactly = 0) { groupController.getGroups(any<Bot>(), any(), any()) }
+        coVerify(exactly = 0) { groupController.getGroups(any(), any()) }
     }
 
     // --- addNewGroup ---

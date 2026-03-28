@@ -5,6 +5,7 @@ import com.ua.astrumon.common.exception.DuplicateResourceException
 import com.ua.astrumon.common.exception.ResourceNotFoundException
 import com.ua.astrumon.common.result.ResultContainer
 import com.ua.astrumon.domain.model.Member
+import com.ua.astrumon.domain.model.MemberRole
 import com.ua.astrumon.domain.repository.MemberRepository
 import com.ua.astrumon.domain.service.MemberService
 import io.mockk.clearAllMocks
@@ -281,5 +282,77 @@ class MemberServiceTest {
         assertTrue(result.isFailure)
         assertEquals("Database operation failed: Database error", result.exceptionOrNull()?.message)
         coVerify { memberRepository.findAll() }
+    }
+
+    @Test
+    fun `getMemberByChatAndUserId should return member when found`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val member = Member(1L, chatId, userId, "alice", "Alice", null)
+
+        coEvery { memberRepository.findByChatIdAndUserId(chatId, userId) } returns ResultContainer.success(member)
+
+        // When
+        val result = memberService.getMemberByChatAndUserId(chatId, userId)
+
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(member, result.getOrThrow())
+        coVerify { memberRepository.findByChatIdAndUserId(chatId, userId) }
+    }
+
+    @Test
+    fun `getMemberByChatAndUserId should return failure when member not found`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+
+        coEvery { memberRepository.findByChatIdAndUserId(chatId, userId) } returns ResultContainer.success(null)
+
+        // When
+        val result = memberService.getMemberByChatAndUserId(chatId, userId)
+
+        // Then
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is ResourceNotFoundException)
+        coVerify { memberRepository.findByChatIdAndUserId(chatId, userId) }
+    }
+
+    @Test
+    fun `setMemberRole should return updated member on success`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 456L
+        val member = Member(1L, chatId, userId, "alice", "Alice", null, role = MemberRole.MEMBER)
+        val updated = member.copy(role = MemberRole.MODERATOR)
+
+        coEvery { memberRepository.findByChatIdAndUserId(chatId, userId) } returns ResultContainer.success(member)
+        coEvery { memberRepository.updateRole(chatId, userId, MemberRole.MODERATOR) } returns ResultContainer.success(updated)
+
+        // When
+        val result = memberService.setMemberRole(chatId, userId, MemberRole.MODERATOR)
+
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(MemberRole.MODERATOR, result.getOrThrow().role)
+        coVerify { memberRepository.updateRole(chatId, userId, MemberRole.MODERATOR) }
+    }
+
+    @Test
+    fun `setMemberRole should return failure when member not found`() = runTest {
+        // Given
+        val chatId = 123L
+        val userId = 999L
+
+        coEvery { memberRepository.findByChatIdAndUserId(chatId, userId) } returns ResultContainer.success(null)
+
+        // When
+        val result = memberService.setMemberRole(chatId, userId, MemberRole.ADMIN)
+
+        // Then
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is ResourceNotFoundException)
+        coVerify(exactly = 0) { memberRepository.updateRole(any(), any(), any()) }
     }
 }

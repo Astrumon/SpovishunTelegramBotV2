@@ -137,13 +137,13 @@ abstract class BaseE2ETest {
 
     @AfterAll
     fun cleanupTestChat() {
-        if (!E2EConfig.isConfigured || !::mainBot.isInitialized || messagesToCleanup.isEmpty()) return
+       /* if (!E2EConfig.isConfigured || !::mainBot.isInitialized || messagesToCleanup.isEmpty()) return
         for (range in messagesToCleanup) {
             for (id in range) {
                 mainBot.deleteMessage(chatId = ChatId.fromId(testChatId), messageId = id)
             }
         }
-        messagesToCleanup.clear()
+        messagesToCleanup.clear()*/
     }
 
     /**

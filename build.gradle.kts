@@ -73,3 +73,22 @@ registerAppTasks()
 tasks.test {
     useJUnitPlatform()
 }
+
+val integrationTestSourceSet = sourceSets.create("integrationTest") {
+    kotlin.srcDir("src/integrationTest/kotlin")
+    resources.srcDir("src/integrationTest/resources")
+    compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+}
+
+configurations["integrationTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests"
+    group = "verification"
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter(tasks.test)
+}

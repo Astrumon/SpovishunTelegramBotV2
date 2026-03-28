@@ -25,6 +25,9 @@ jobs:
           chmod +x gradlew
           ./gradlew test
 
+      - name: Run integration tests
+        run: ./gradlew integrationTest
+
       - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: failure()
